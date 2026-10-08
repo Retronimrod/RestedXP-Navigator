@@ -51,4 +51,4 @@ jobs:
       - name: Upload to CurseForge
         shell: bash
         run: |
-          curl --fail --show-error --silent -H "X-Api-Token: $CF_TOKEN" -F "metadata=@$RUNNER_TEMP/metadata.json;type=application/json" -F "file=@$RUNNER_TEMP/RestedXP-Navigator-${{ steps.vars.outputs.tag }}.zip;type=application/zip" "https://www.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file"
+          curl --fail-with-body --show-error --silent -H "X-Api-Token: $CF_TOKEN" -F "metadata=@$RUNNER_TEMP/metadata.json;type=application/json" -F "file=@$RUNNER_TEMP/RestedXP-Navigator-${{ steps.vars.outputs.tag }}.zip;type=application/zip" "https://www.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file"
