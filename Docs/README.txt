@@ -110,8 +110,3 @@ The addon provides visual navigation only. It does not automate movement, combat
 
 No TomTom or RestedXP-TomTom dependency is required.
 
-
-1.4.0: Quest object markers and Grind XP HUD
-- RestedXP object-location loops can be shown as individual collectible/object nodes instead of connected lines.
-- Supported visual classes include crystals, chests, herbs, mushrooms, eggs, containers, remains and a generic quest-object fallback.
-- The nearest visible object is highlighted for orientation.
