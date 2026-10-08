@@ -1,3 +1,15 @@
+# RestedXP-Navigator Changelog
+
+## 1.4.0
+- Promoted the tested 1.4.0 development line to the stable 1.4.0 release.
+- Added quest-object / collectible markers for RestedXP object-location loops on the World Map and Minimap.
+- Added object classification, contextual tooltips and nearest-object highlighting while keeping non-object overlays unchanged.
+- Added a dedicated Grind XP HUD with live XP progress, current/target XP, percentage display and grind instruction text.
+- Grind steps hide ETA so the HUD remains focused on XP progress; normal navigation keeps the regular ETA display.
+- Improved Grind HUD readability with larger progress text, a larger progress bar and increased spacing below navigation distance.
+- Synchronized all public and internal version strings to 1.4.0 and removed obsolete beta labels from user-facing diagnostics.
+
+### 1.4.0 development history
 ## 1.4.0
 - Added quest-object / collectible markers for RestedXP object-location loops on the World Map and Minimap.
 - Added object classification, tooltips and nearest-object highlighting while keeping non-object overlay routes unchanged.
@@ -30,7 +42,6 @@
 - Only the nearest object keeps a small gold focus ring.
 - Mouseover hit areas remain larger than the visible markers for usability.
 
-# RestedXP-Navigator Changelog
 
 ## 1.4.0-beta1
 - Added a generic quest-object / collectible marker system for RestedXP object-location loops.
@@ -408,18 +419,6 @@ RestedXP-Navigator
 
 - Suppress native RestedXP world/zone-map objective counters such as `0/60`; objective progress remains available in Navigator target tooltips only.
 - Keeps RestedXP map-pin data and waypoint engine untouched; only the native progress text is hidden.
-
-# RestedXP-Navigator Changelog
-
-## 1.4.0-beta1
-- Added a generic quest-object / collectible marker system for RestedXP object-location loops.
-- Object-location loops are rendered as individual markers instead of misleading connected route lines.
-- Added automatic object classification for crystals/minerals, chests/caches, plants/herbs, mushrooms, eggs, containers, remains/corpses and a neutral fallback.
-- Added object markers on both World Map and Minimap.
-- The nearest visible object is highlighted with a gold ring; other object locations use a cyan ring.
-- Added object tooltips with object type, instruction, quest progress and minimap distance when available.
-- Added a dedicated "Quest object markers" option in the Overlays tab.
-- Existing farm, patrol, search and normal navigation routes remain unchanged when a loop is not confidently identified as an object-collection loop.
 
 ## 1.3.0-beta1
 
