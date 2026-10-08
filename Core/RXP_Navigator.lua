@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = "1.4.0-beta2"
+local ADDON_VERSION = "1.4.0"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -3483,7 +3483,7 @@ local function UpdateHUDArrow(dt)
     local travelInfo = Navigator.TravelMode and Navigator.TravelMode:GetInfo(currentElement)
     if travelInfo then
         HideGrindHUD()
-        -- Beta41: route selection is centralized in TravelPlanner. The proven
+        -- Route selection is centralized in TravelPlanner. The proven
         -- TravelMode fallback remains authoritative when no smart plan exists.
         local smartTravelPlan = Navigator.TravelPlanner and Navigator.TravelPlanner.GetPlan and Navigator.TravelPlanner:GetPlan(currentElement) or nil
         local travelRoute = smartTravelPlan and smartTravelPlan.routeRaw or Navigator.TravelMode:GetBestRoute(currentElement, travelInfo)
@@ -3683,7 +3683,7 @@ Navigator.rxpEventBridgeReady = false
 -- RestedXP waypoint-engine compatibility moved to Core\RXPBridge.lua.
 
 -- ---------------------------------------------------------------------------
--- Beta 5 diagnostics: SAFE RestedXP Step Inspector
+-- SAFE RestedXP Step Inspector
 -- Uses only rawget/next for foreign tables to avoid RestedXP metamethod loops.
 -- Read-only: never mutates RestedXP state or navigation.
 -- ---------------------------------------------------------------------------
