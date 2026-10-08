@@ -23,7 +23,7 @@ World-map/minimap overlay modules live in `Map/`.
 ## Media
 Only runtime media assets are stored in `Media/`. Development previews are not packaged.
 
-## Target and Tooltip pipeline (beta38)
+## Target and Tooltip pipeline
 - `Core/TargetResolver.lua` converts RXP elements into a stable Navigator target model.
 - `UI/TooltipEngine.lua` renders that model consistently for route, world-map and minimap hover surfaces.
 - Renderers should request target metadata through `Navigator.API:GetResolvedTarget()` rather than parsing RXP fields independently.
