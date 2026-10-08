@@ -344,8 +344,8 @@ function Navigator.Inspector.IDescribeRelevantRootKeys(root, rootName)
 end
 
 function Navigator.Inspector.SafeInspectSteps()
-    API:BeginInspectorCapture("inspectsteps beta5")
-    API:Print("=== RestedXP SAFE Step Inspector Beta 5 ===")
+    API:BeginInspectorCapture("inspectsteps")
+    API:Print("=== RestedXP SAFE Step Inspector ===")
     local roots = {}
     local api = rawget(_G, "RXPGuides")
     if type(api) == "table" then roots[#roots+1] = {name="_G.RXPGuides", value=api, priority=true} end
@@ -443,13 +443,13 @@ function Navigator.Inspector.SafeInspectSave()
         return
     end
     RXPNavigatorDebugDB = RXPNavigatorDebugDB or {}
-    RXPNavigatorDebugDB.beta5 = {
+    RXPNavigatorDebugDB.latest = {
         timestamp = (time and time() or 0),
         label = Navigator.Debug and Navigator.Debug.logLabel or "",
         lines = lines,
         text = API:GetInspectorExportText(),
     }
-    API:Print("Inspector-Ausgabe in RXPNavigatorDebugDB.beta5 gespeichert. Nach /reload oder Logout steht sie in der SavedVariables-Datei.")
+    API:Print("Inspector-Ausgabe in RXPNavigatorDebugDB.latest gespeichert. Nach /reload oder Logout steht sie in der SavedVariables-Datei.")
 end
 
 function Navigator.Inspector.SafeInspectCopy()
@@ -459,7 +459,7 @@ end
 
 
 -- ---------------------------------------------------------------------------
--- Beta 6 diagnostics: Targeted active-guide inspector
+-- Targeted active-guide inspector
 -- Uses RXPCData.currentGuideGroup/currentGuideName/currentStep and the
 -- RXPGuides GetGuideTable/GetGuideProgress APIs instead of broad table scans.
 -- ---------------------------------------------------------------------------
@@ -499,8 +499,8 @@ function Navigator.Inspector.IFindNavigableElement(step)
 end
 
 function Navigator.Inspector.TargetedGuideInspect()
-    API:BeginInspectorCapture("guideinspect beta6")
-    API:Print("=== RestedXP Targeted Guide Inspector Beta 6 ===")
+    API:BeginInspectorCapture("guideinspect")
+    API:Print("=== RestedXP Targeted Guide Inspector ===")
 
     local addon = Navigator.Inspector.GetAceRXPAddon()
     local rxpc = rawget(_G, "RXPCData")
@@ -570,8 +570,8 @@ end
 
 
 function Navigator.Inspector.FutureGuideDebug()
-    API:BeginInspectorCapture("futureguide beta16")
-    API:Print("=== RestedXP Future Goals Beta 16 ===")
+    API:BeginInspectorCapture("futureguide")
+    API:Print("=== RestedXP Future Goals ===")
     local guide, stepIndex = API:ResolveActiveGuideAndStep()
     API:Print("Active guide: " .. (type(guide)=="table" and "found" or "nil") .. " | currentStep=" .. tostring(stepIndex))
     local db = API:GetDB()
@@ -591,8 +591,8 @@ function Navigator.Inspector.FutureGuideDebug()
 end
 
 function Navigator.Inspector.RenderFutureDebug()
-    API:BeginInspectorCapture("renderfuture beta16")
-    API:Print("=== RestedXP Renderer Future Debug Beta 16 ===")
+    API:BeginInspectorCapture("renderfuture")
+    API:Print("=== RestedXP Renderer Future Debug ===")
     local db = API:GetDB()
     API:Print("Configured Future Goals: +" .. tostring(db and db.futureGoals or 0))
     local displayMapID = API:GetDisplayedMapID()
