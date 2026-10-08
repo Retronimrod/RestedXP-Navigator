@@ -3,6 +3,9 @@ name: Publish to CurseForge
 on:
   release:
     types: [published]
+  push:
+    paths:
+      - ".github/trigger-curseforge-v1.4.0"
   workflow_dispatch:
     inputs:
       tag:
@@ -30,6 +33,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
             TAG="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            TAG="v1.4.0"
           else
             TAG="${{ inputs.tag }}"
           fi
