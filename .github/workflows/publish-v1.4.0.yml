@@ -19,14 +19,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build release archive
+      - name: Build and publish release
         shell: bash
         run: |
           set -euo pipefail
-          TARGET_SHA="${{ github.event.before }}"
-          if [ -z "$TARGET_SHA" ] || [ "$TARGET_SHA" = "0000000000000000000000000000000000000000" ]; then
-            TARGET_SHA="$(git rev-parse HEAD^)"
-          fi
+          TARGET_SHA="46a9e5f520148182acf49501736af76e467b2802"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           mkdir -p /tmp/rxp-release/RXP_Navigator
           git archive "$TARGET_SHA" Core Debug Docs Map Media UI RXP_Navigator.toc LICENSE README.md | tar -x -C /tmp/rxp-release/RXP_Navigator
