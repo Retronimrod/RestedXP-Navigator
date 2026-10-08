@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest an improvement for RestedXP-Navigator
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see?
+      description: Describe the desired behavior and the problem it would solve.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add examples, screenshots or edge cases if useful.

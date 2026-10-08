@@ -41,11 +41,7 @@
 
 ## Screenshots
 
-![RestedXP-Navigator](screenshots/RestedXP-Navigator_1.png)
-
-![RestedXP-Navigator](screenshots/RestedXP-Navigator_2.png)
-
-![RestedXP-Navigator](screenshots/RestedXP-Navigator_3.png)
+Project screenshots will be added to the repository and GitHub releases separately.
 
 ## Project structure
 

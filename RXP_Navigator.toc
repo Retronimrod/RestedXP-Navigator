@@ -1,0 +1,43 @@
+## Interface: 16001
+## Title: RestedXP-Navigator
+## Notes: Navigation companion for RXPGuides with minimap, world map and HUD guidance.
+## Notes-deDE: Navigations-Erweiterung für RXPGuides mit Minimap-, Weltkarten- und HUD-Navigation.
+## Author: Fabian
+## Version: 1.4.0
+## IconTexture: Interface\AddOns\RXP_Navigator\Media\RXPNav_IconRound.tga
+## Category: Quests
+## Category-deDE: Quests
+## Category-frFR: Quêtes
+## Category-esES: Misiones
+## Category-esMX: Misiones
+## Category-itIT: Missioni
+## Category-ptBR: Missões
+## Category-ruRU: Задания
+## Category-koKR: 퀘스트
+## Category-zhCN: 任务
+## Category-zhTW: 任務
+## Dependencies: RXPGuides
+## SavedVariables: RXPNavigatorDB, RXPNavigatorDebugDB
+## X-License: All Rights Reserved
+
+Core\RXP_Navigator.lua
+Core\RXPBridge.lua
+Core\TargetResolver.lua
+Core\ObjectResolver.lua
+Core\GrindHUD.lua
+Core\TravelResolver.lua
+Core\TravelNetwork.lua
+Core\TravelPlanner.lua
+Core\TravelHUD.lua
+Core\RouteSmoother.lua
+UI\Presentation.lua
+Debug\Inspector.lua
+Debug\Diagnostics.lua
+UI\Options.lua
+UI\TooltipEngine.lua
+UI\RouteTooltip.lua
+Map\WorldMapFilter.lua
+Map\MapOverlays.lua
+Map\MinimapOverlays.lua
+Map\MinimapFuture.lua
+UI\MinimapButton.lua

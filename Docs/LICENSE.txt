@@ -1,0 +1,6 @@
+RestedXP-Navigator
+Copyright (c) 2026 Fabian
+
+All Rights Reserved.
+
+No permission is granted to redistribute, modify, repackage, sell, or publish this addon or substantial portions of its source code without the copyright holder's prior permission.

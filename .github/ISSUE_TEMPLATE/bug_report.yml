@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible problem in RestedXP-Navigator
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve RestedXP-Navigator.
+  - type: input
+    id: version
+    attributes:
+      label: Addon version
+      placeholder: 1.4.0
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Paste `/rxpnav bugreport` or `/rxpnav status` output when relevant.
+      render: text
