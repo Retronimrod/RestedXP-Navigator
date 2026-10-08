@@ -4,6 +4,21 @@ A visual navigation companion for RestedXP Guides on WoW Forever.
 
 RestedXP-Navigator adds a dedicated navigation layer to RXPGuides without replacing or redistributing RestedXP guide content. It provides minimap and world-map routing, HUD guidance, future-goal previews, travel assistance, route overlays and corpse-run navigation.
 
+
+WHAT'S NEW IN 1.4.0
+
+Quest object markers
+- RestedXP object-location loops can be shown as individual collectible/object nodes instead of connected lines.
+- Supported visual classes include crystals, chests, herbs, mushrooms, eggs, containers, remains and a generic quest-object fallback.
+- The nearest visible object is highlighted for orientation.
+
+Grind XP HUD
+- Dedicated XP progress display for active RestedXP grind steps.
+- Shows current/target XP, percentage progress and grind instruction text.
+- ETA is hidden during grind steps so the HUD remains focused on XP progress.
+- Grind progress hides automatically when the threshold is reached or the guide leaves the grind step.
+
+
 FEATURES
 
 Navigation
