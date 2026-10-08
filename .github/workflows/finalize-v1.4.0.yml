@@ -1,0 +1,70 @@
+name: Finalize v1.4.0 release
+
+on:
+  push:
+    paths:
+      - ".github/workflows/finalize-v1.4.0.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: "23f778b47df8b874bbfe79e09ed2469830b84370"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build clean addon archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf /tmp/rxp-release
+          mkdir -p /tmp/rxp-release/RXP_Navigator
+
+          git archive "$TARGET_SHA"             Core Debug Docs Map Media UI             RXP_Navigator.toc LICENSE README.md             | tar -x -C /tmp/rxp-release/RXP_Navigator
+
+          cd /tmp/rxp-release
+          zip -qr RestedXP-Navigator-v1.4.0.zip RXP_Navigator
+          sha256sum RestedXP-Navigator-v1.4.0.zip
+
+      - name: Move v1.4.0 tag to tested stable commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag -d v1.4.0 2>/dev/null || true
+          git push origin :refs/tags/v1.4.0 || true
+          git tag -a v1.4.0 "$TARGET_SHA" -m "RestedXP-Navigator v1.4.0"
+          git push origin v1.4.0
+
+      - name: Update GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git show "$TARGET_SHA:Docs/RELEASE-v1.4.0.md" > /tmp/release-notes.md
+
+          gh release edit v1.4.0             --repo "$GITHUB_REPOSITORY"             --title "RestedXP-Navigator v1.4.0"             --notes-file /tmp/release-notes.md
+
+          gh release upload v1.4.0             /tmp/rxp-release/RestedXP-Navigator-v1.4.0.zip             --repo "$GITHUB_REPOSITORY"             --clobber
+
+      - name: Remove one-time finalizer
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/finalize-v1.4.0.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Remove one-time v1.4.0 finalizer"
+          git push origin HEAD:main
