@@ -10,12 +10,6 @@
 - Synchronized all public and internal version strings to 1.4.0 and removed obsolete beta labels from user-facing diagnostics.
 
 ### 1.4.0 development history
-## 1.4.0
-- Added quest-object / collectible markers for RestedXP object-location loops on the World Map and Minimap.
-- Added object classification, tooltips and nearest-object highlighting while keeping non-object overlay routes unchanged.
-- Added a dedicated Grind XP HUD with live XP progress, a percentage bar and grind-step action text.
-- Grind steps hide ETA to keep the HUD focused on XP progress; normal navigation keeps the regular ETA display.
-- Improved Grind HUD readability with larger progress text, a larger progress bar and increased spacing below the navigation distance.
 
 ## 1.4.0-beta5
 - Increased the vertical spacing between the navigation distance and the Grind XP block.
