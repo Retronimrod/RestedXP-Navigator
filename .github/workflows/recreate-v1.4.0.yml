@@ -1,0 +1,52 @@
+name: Recreate v1.4.0 release
+
+on:
+  push:
+    paths:
+      - ".github/workflows/recreate-v1.4.0.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  recreate:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_ID: "406693669"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build clean archive from v1.4.0 tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/rxp-release
+          mkdir -p /tmp/rxp-release/RXP_Navigator
+          git archive v1.4.0 Core Debug Docs Map Media UI RXP_Navigator.toc LICENSE README.md | tar -x -C /tmp/rxp-release/RXP_Navigator
+          cd /tmp/rxp-release
+          zip -qr RestedXP-Navigator-v1.4.0.zip RXP_Navigator
+          sha256sum RestedXP-Navigator-v1.4.0.zip
+
+      - name: Recreate release on correct tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show v1.4.0:Docs/RELEASE-v1.4.0.md > /tmp/release-notes.md
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID"
+          gh release create v1.4.0             /tmp/rxp-release/RestedXP-Navigator-v1.4.0.zip             --repo "$GITHUB_REPOSITORY"             --title "RestedXP-Navigator v1.4.0"             --notes-file /tmp/release-notes.md             --verify-tag
+
+      - name: Remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/recreate-v1.4.0.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Remove one-time v1.4.0 release recreation workflow"
+          git push origin HEAD:main
