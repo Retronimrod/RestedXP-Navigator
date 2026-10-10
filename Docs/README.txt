@@ -1,4 +1,4 @@
-RestedXP-Navigator 1.4.0
+RestedXP-Navigator 1.5.0
 
 A visual navigation companion for RestedXP Guides on WoW Forever.
 
@@ -20,6 +20,11 @@ Grind XP HUD
 
 
 FEATURES
+
+Native In-World Marker
+- Optional Blizzard-native world-space navigation marker for the current RestedXP target
+- Uses the built-in Forever navigation diamond and distance presentation
+- Preserves/restores existing user waypoint or quest super-tracking where possible
 
 Navigation
 - Direct navigation to the active RestedXP destination
