@@ -1,5 +1,12 @@
 # RestedXP-Navigator Changelog
 
+## 1.5.0
+- Added an optional native in-world RestedXP target marker using Blizzard's built-in Forever navigation system.
+- The marker follows the current RestedXP navigation point and uses Blizzard's native diamond/distance presentation.
+- Smart travel routes prefer the immediate travel approach point where available.
+- The feature is disabled by default and can be enabled under General -> Native in-world target marker.
+- Existing quest/user super-tracking is preserved and restored where possible when the feature releases control.
+
 ## 1.4.0
 - Promoted the tested 1.4.0 development line to the stable 1.4.0 release.
 - Added quest-object / collectible markers for RestedXP object-location loops on the World Map and Minimap.
