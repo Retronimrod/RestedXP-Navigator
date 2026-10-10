@@ -256,11 +256,14 @@ local function BuildGeneralPage(panel)
 
     MakeCheckbox(panel, page, L("enabled"), 18, -48, function() return db.enabled end, function(v) db.enabled=v end)
     MakeCheckbox(panel, page, L("ghostNav"), 340, -48, function() return db.keepGhostNavigation end, function(v) db.keepGhostNavigation=v end)
+    MakeCheckbox(panel, page, L("worldMarkerNative"), 18, -82,
+        function() return db.showWorldMarkerNative == true end,
+        function(v) db.showWorldMarkerNative = v end)
 
     local themeLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    themeLabel:SetPoint("TOPLEFT", 18, -96)
+    themeLabel:SetPoint("TOPLEFT", 18, -130)
     themeLabel:SetText(L("colorTheme"))
-    MakeThemeDropdown(panel, page, 18, -114)
+    MakeThemeDropdown(panel, page, 18, -148)
 
     local function ResetSettings()
         for k,v in pairs(defaults) do db[k]=v end
@@ -285,7 +288,7 @@ local function BuildGeneralPage(panel)
 
     local reset = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
     reset:SetSize(160, 26)
-    reset:SetPoint("TOPLEFT", 18, -200)
+    reset:SetPoint("TOPLEFT", 18, -234)
     reset:SetText(L("reset"))
     reset:SetScript("OnClick", function()
         if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs["RXPNAV_RESET_CONFIRM"] then
