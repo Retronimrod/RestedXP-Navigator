@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = "1.4.0"
+local ADDON_VERSION = "1.5.0"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -153,14 +153,14 @@ local FEATURE_LOCALES = {
         stepTypeIcons="Show step-type icon in target tooltip", questProgress="Show quest progress in target tooltip", zoneHints="Zone transition hints", transportHints="Travel/transport hints",
         spiritHealer="Show Spirit Healer hint while dead", corpseNearby="Corpse nearby",
         minimapMarkerSize="Minimap marker size", worldMarkerSize="World-map marker size", minimapAnimSpeed="Minimap arrow speed", worldAnimSpeed="World-map arrow speed",
-        mapDiagnostics="Map diagnostics", bugReport="Bug report", nextZone="Next zone", travel="Travel", travelTo="Travel to", travelZeppelin="Zeppelin", travelShip="Ship", travelStart="Start", travelThen="Then", spiritHealerLabel="Spirit Healer", routePreview="Route preview", rxpActiveCircle="Show RestedXP active target circle", searchAreas="Search areas", patrolPaths="Patrol paths", farmRoutes="Farm routes", objectMarkers="Quest object markers", searchAreaOpacity="Search area opacity", patrolOpacity="Patrol opacity", farmOpacity="Farm opacity", minimapButton="Minimap settings button",
+        mapDiagnostics="Map diagnostics", bugReport="Bug report", nextZone="Next zone", travel="Travel", travelTo="Travel to", travelZeppelin="Zeppelin", travelShip="Ship", travelStart="Start", travelThen="Then", spiritHealerLabel="Spirit Healer", routePreview="Route preview", rxpActiveCircle="Show RestedXP active target circle", searchAreas="Search areas", patrolPaths="Patrol paths", farmRoutes="Farm routes", objectMarkers="Quest object markers", searchAreaOpacity="Search area opacity", patrolOpacity="Patrol opacity", farmOpacity="Farm opacity", minimapButton="Minimap settings button", worldMarkerNative="Native in-world target marker",
     },
     deDE = {
         offscreenIndicator="Off-Screen-Zielanzeige", currentHighlight="Aktuelles Ziel hervorheben", routeDistances="Distanz zwischen Routenzielen anzeigen", tooltipType="Typ", tooltipProgress="Fortschritt", tooltipObjective="Ziel",
         stepTypeIcons="Step-Typ-Symbol im Ziel-Tooltip anzeigen", questProgress="Questfortschritt im Ziel-Tooltip anzeigen", zoneHints="Gebietswechsel-Hinweise", transportHints="Reise-/Transport-Hinweise",
         spiritHealer="Geistheiler-Hinweis im Geistmodus", corpseNearby="Leiche in der Nähe",
         minimapMarkerSize="Minimap-Markergröße", worldMarkerSize="Weltkarten-Markergröße", minimapAnimSpeed="Minimap-Pfeilgeschwindigkeit", worldAnimSpeed="Weltkarten-Pfeilgeschwindigkeit",
-        mapDiagnostics="Kartendiagnose", bugReport="Fehlerbericht", nextZone="Nächstes Gebiet", travel="Reise", travelTo="Reise nach", travelZeppelin="Zeppelin", travelShip="Schiff", travelStart="Start", travelThen="Danach", spiritHealerLabel="Geistheiler", routePreview="Routenvorschau", rxpActiveCircle="RestedXP-Zielkreis auf der Karte anzeigen", searchAreas="Suchbereiche", patrolPaths="Patrouillenwege", farmRoutes="Farmrouten", objectMarkers="Questobjekt-Marker", searchAreaOpacity="Suchbereich-Deckkraft", patrolOpacity="Patrouillen-Deckkraft", farmOpacity="Farmrouten-Deckkraft", minimapButton="Minimap-Einstellungsbutton",
+        mapDiagnostics="Kartendiagnose", bugReport="Fehlerbericht", nextZone="Nächstes Gebiet", travel="Reise", travelTo="Reise nach", travelZeppelin="Zeppelin", travelShip="Schiff", travelStart="Start", travelThen="Danach", spiritHealerLabel="Geistheiler", routePreview="Routenvorschau", rxpActiveCircle="RestedXP-Zielkreis auf der Karte anzeigen", searchAreas="Suchbereiche", patrolPaths="Patrouillenwege", farmRoutes="Farmrouten", objectMarkers="Questobjekt-Marker", searchAreaOpacity="Suchbereich-Deckkraft", patrolOpacity="Patrouillen-Deckkraft", farmOpacity="Farmrouten-Deckkraft", minimapButton="Minimap-Einstellungsbutton", worldMarkerNative="Nativer Zielmarker in der Spielwelt",
     },
 }
 for code, values in pairs(FEATURE_LOCALES) do
@@ -233,6 +233,7 @@ local defaults = {
     showMinimapFutureGoals = true,
     minimapButtonAngle = 220,
     keepGhostNavigation = true,
+    showWorldMarkerNative = false,
 }
 
 local db
