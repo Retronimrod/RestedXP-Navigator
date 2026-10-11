@@ -1,49 +1,90 @@
-name: Publish to CurseForge
+name: Publish Release
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Git tag to publish
-        required: true
-        default: v1.4.0
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  upload:
+  release:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'Release v')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
       CF_TOKEN: ${{ secrets.CURSEFORGED }}
       CF_PROJECT_ID: "1722407"
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Resolve tag
+
+      - name: Resolve version
         id: vars
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-          else
-            TAG="${{ inputs.tag }}"
+          VERSION="$(awk '/^## Version:/ {print $3; exit}' RXP_Navigator.toc)"
+          if [ -z "$VERSION" ]; then
+            echo "Could not resolve version from RXP_Navigator.toc" >&2
+            exit 1
           fi
+          TAG="v${VERSION}"
+          ASSET="RestedXP-Navigator-${TAG}.zip"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-      - name: Download release asset
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+
+      - name: Build addon package
         shell: bash
         run: |
-          gh release download "${{ steps.vars.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --pattern "RestedXP-Navigator-${{ steps.vars.outputs.tag }}.zip" --dir "$RUNNER_TEMP"
-      - name: Build metadata
+          rm -rf "$RUNNER_TEMP/RXP_Navigator" "$RUNNER_TEMP/${{ steps.vars.outputs.asset }}"
+          mkdir -p "$RUNNER_TEMP/RXP_Navigator"
+          cp RXP_Navigator.toc "$RUNNER_TEMP/RXP_Navigator/"
+          cp -R Core UI Map Debug Docs Media "$RUNNER_TEMP/RXP_Navigator/"
+          cd "$RUNNER_TEMP"
+          zip -qr "${{ steps.vars.outputs.asset }}" RXP_Navigator
+
+      - name: Create GitHub release
         shell: bash
         run: |
-          git show "${{ steps.vars.outputs.tag }}:Docs/RELEASE-v1.4.0.md" > "$RUNNER_TEMP/changelog.md"
-          jq -n --rawfile changelog "$RUNNER_TEMP/changelog.md" --arg displayName "RestedXP-Navigator ${{ steps.vars.outputs.tag }}" '{changelog:$changelog,changelogType:"markdown",displayName:$displayName,gameVersionNames:["1.60.1"],releaseType:"release"}' > "$RUNNER_TEMP/metadata.json"
+          TAG="${{ steps.vars.outputs.tag }}"
+          ASSET="$RUNNER_TEMP/${{ steps.vars.outputs.asset }}"
+          NOTES="Docs/RELEASE-${TAG}.md"
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "$ASSET" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "RestedXP-Navigator $TAG" \
+              --notes-file "$NOTES"
+          fi
+
       - name: Upload to CurseForge
         shell: bash
         run: |
-          curl --fail-with-body --show-error --silent -H "X-Api-Token: $CF_TOKEN" -F "metadata=<$RUNNER_TEMP/metadata.json;type=application/json" -F "file=@$RUNNER_TEMP/RestedXP-Navigator-${{ steps.vars.outputs.tag }}.zip;type=application/zip" "https://www.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file"
+          if [ -z "$CF_TOKEN" ]; then
+            echo "CURSEFORGED secret is missing." >&2
+            exit 1
+          fi
+
+          jq -n \
+            --rawfile changelog "Docs/RELEASE-${{ steps.vars.outputs.tag }}.md" \
+            --arg displayName "RestedXP-Navigator ${{ steps.vars.outputs.tag }}" \
+            '{
+              changelog: $changelog,
+              changelogType: "markdown",
+              displayName: $displayName,
+              gameVersionNames: ["1.60.1"],
+              releaseType: "release"
+            }' > "$RUNNER_TEMP/metadata.json"
+
+          curl --fail-with-body --show-error --silent \
+            -H "X-Api-Token: $CF_TOKEN" \
+            -F "metadata=<$RUNNER_TEMP/metadata.json;type=application/json" \
+            -F "file=@$RUNNER_TEMP/${{ steps.vars.outputs.asset }};type=application/zip" \
+            "https://www.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file"

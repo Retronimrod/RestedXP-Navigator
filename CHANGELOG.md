@@ -1,5 +1,184 @@
 # RestedXP-Navigator Changelog
 
+## 1.5.27
+- Restored the exact native-waypoint suppression strategy that was already proven to work in v1.5.15.
+- The regression was introduced when the safety-hardening pass removed the `SuperTrackedFrameMixin:SetTargetAlphaForState()` suppression that prevented Blizzard's own alpha lerp from restoring the gold waypoint and distance.
+- While RestedXP-Navigator owns the waypoint, Blizzard navigation states Invalid/Occluded/InRange/Disabled are visually suppressed and the native frame/child alpha is enforced at 0.
+- The native `C_Navigation` waypoint itself remains active and still provides the world-space anchor for the RestedXP-Navigator marker.
+- Original Blizzard alpha values are restored when RestedXP-Navigator releases the waypoint or the UI session ends.
+- Later NPC-test/nameplate safety changes remain intact.
+
+## 1.5.26
+- Fixed the remaining duplicate gold Blizzard distance text under the RestedXP-Navigator marker.
+- Instead of hiding the whole `SuperTrackedFrame`, the addon now sets only the visible child regions (`Icon`, `IconBorder`, `DistanceText`, `Arrow`) to alpha 0 while it owns the waypoint.
+- Added a cosmetic `OnUpdate` hook on Blizzard's actual `SuperTrackedFrame`, so suppression is applied immediately after Blizzard updates the distance text each frame.
+- Blizzard navigation logic, navigation-state alpha tables, frame geometry and protected/restricted regions remain untouched.
+- Native child-region alpha is restored to 1 when RestedXP-Navigator releases the waypoint.
+
+## 1.5.25
+- Fixed Blizzard's gold waypoint icon and gold distance remaining visible underneath the RestedXP-Navigator marker.
+- While RestedXP-Navigator owns a waypoint, the addon now hides Blizzard's entire `SuperTrackedFrame` presentation frame instead of hiding individual child regions.
+- The underlying `C_Navigation` frame remains active and continues to provide RestedXP-Navigator's world-space anchor.
+- No Blizzard navigation-state alpha tables are modified, no protected/restricted geometry is measured and no nameplate CVars are changed.
+- The native presentation frame is restored when RestedXP-Navigator releases ownership.
+
+## 1.5.24
+- Restored hiding of Blizzard's duplicate gold waypoint visuals using a narrower cosmetic-only approach.
+- Uses `hooksecurefunc` after Blizzard's own `SuperTrackedFrameMixin` updates and only hides the visible Icon, IconBorder, DistanceText and Arrow while RestedXP-Navigator owns the waypoint.
+- Does not modify Blizzard navigation-state alpha tables, does not alter nameplate CVars, does not measure restricted regions and does not replace native navigation logic.
+- All region operations are guarded and skipped if Blizzard marks a region forbidden.
+- The native C_Navigation/SuperTrack waypoint remains fully active underneath and continues to provide the world-space anchor.
+
+## 1.5.23
+- Safety hardening pass for Blizzard addon-policy compliance.
+- Removed all automatic changes to `nameplateShowFriends`, `nameplateShowFriendlyNpcs` and `nameplateShowEnemies`.
+- Removed manipulation/suppression of Blizzard's native `SuperTrackedFrame` alpha and navigation-state presentation.
+- The native Blizzard super-tracking presentation is allowed to behave normally again; RestedXP-Navigator no longer fights Blizzard's frame update logic.
+- NPC anchoring remains diagnostic-only and read-only: `/rxpnav npctest` only uses nameplates already exposed by the player's own UI settings.
+- Retained the safe nameplate-child diagnostic approach and kept all restricted frame geometry measurements removed.
+- Documented the addon safety policy: no combat automation, no secure/protected API bypasses, no automatic pings, no restricted-region measurements and no silent UI preference changes.
+
+## 1.5.22
+- Shortened the vertical line under the NPC test marker by 50%.
+- The Blizzard Assist test marker remains unchanged, but the pin/stem texture now renders at half height for a cleaner presentation over friendly and hostile NPCs.
+
+## 1.5.21
+- Fixed the NPC-anchor diagnostic for friendly NPCs.
+- Friendly NPCs require Blizzard's dedicated `nameplateShowFriendlyNpcs` CVar in addition to `nameplateShowFriends`; the previous test only enabled the general friendly switch.
+- `/rxpnav npctest` now temporarily enables both CVars for friendly NPC targets and restores the player's original settings afterwards.
+- `/rxpnav npctest status` now reports the current Friends/FriendlyNPCs/Enemies CVar values for easier diagnosis.
+
+## 1.5.20
+- Fixed the NPC-test Lua taint caused by measuring restricted Blizzard nameplate regions (`NamePlate:GetCenter()`).
+- The diagnostic no longer reads nameplate geometry at all.
+- `/rxpnav npctest` now attaches the green Blizzard Assist test marker as a child of the selected NPC's actual nameplate frame, allowing WoW itself to maintain the world-space position.
+- Removed screen-distance ranking and other nameplate frame measurements that can trigger `Action[FrameMeasurement] failed because [Can't measure restricted regions]`.
+- Automatic production NPC snapping is temporarily conservative: it keeps the native waypoint rather than touching restricted nameplate geometry. The dedicated NPC test is now the safe path for validating direct nameplate attachment.
+
+## 1.5.19
+- Improved `/rxpnav npctest` for NPCs that show only an overhead name but no actual Blizzard nameplate frame.
+- The test now temporarily enables the appropriate Blizzard nameplate CVar (`nameplateShowFriends` or `nameplateShowEnemies`) for the selected NPC.
+- Previous nameplate settings are restored automatically when the test stops, times out or the UI session ends.
+- When the target's Blizzard nameplate is created, the diagnostic immediately detects it and anchors the green Assist test marker to its screen position.
+- Added clearer chat diagnostics distinguishing an overhead NPC name from an actual C_NamePlate frame.
+
+## 1.5.18
+- Fixed the manual NPC-anchor test not rendering despite reporting a found nameplate.
+- The cause was Lua lexical scope: `UpdateNPCTestFrame()` referenced `FindNamePlateByGUID()` and `IsNPCTestActive()` before those local functions had been declared, so the test updater resolved them as nil globals and failed silently inside `pcall`.
+- Added proper forward declarations for the NPC-test helpers.
+- NPC-test errors are now printed to chat instead of being silently swallowed.
+- `/rxpnav npctest` now performs an immediate render attempt and reports whether the marker was actually displayed.
+
+## 1.5.17
+- Reworked `/rxpnav npctest` into a completely independent diagnostic overlay.
+- The NPC test no longer depends on the current RestedXP waypoint, native world-marker ownership or automatic NPC-snap logic.
+- The test marker copies the selected NPC nameplate's current screen coordinates onto a normal UIParent frame every update instead of anchoring directly to the recycled WorldFrame nameplate.
+- This avoids nameplate frame restrictions/recycling issues and makes the test result unambiguous.
+- The diagnostic marker uses Blizzard's green Assist ping assets and displays `NPC TEST: <name>` next to the NPC.
+
+## 1.5.16
+- Added a dedicated manual NPC-anchor test mode.
+- Target any NPC and run `/rxpnav npctest` to force the RestedXP-Navigator marker to that NPC's visible nameplate for up to 120 seconds.
+- Test mode uses the green Blizzard Assist marker and shows `NPC TEST: <name>` next to it for clear visual verification.
+- Added `/rxpnav npctest status` and `/rxpnav npctest off`.
+- The test reports whether a usable nameplate is currently visible, making it easier to diagnose multi-floor NPC anchoring independently from RestedXP metadata.
+
+## 1.5.15
+- Fixed the remaining semi-transparent/flickering Blizzard gold waypoint underneath the RestedXP-Navigator marker.
+- Native SuperTrackedFrame suppression now uses Blizzard's own NavigationState alpha table, setting Invalid/Occluded/InRange/Disabled target alpha to zero while RestedXP-Navigator owns the waypoint.
+- Icon, distance text and clamped arrow alpha are additionally enforced to zero every marker refresh to eliminate one-frame alpha interpolation flashes.
+- Blizzard's normal navigation alpha values are restored automatically when RestedXP-Navigator releases the waypoint or the addon session ends.
+
+## 1.5.14
+- Hid Blizzard's default gold SuperTrackedFrame icon and its duplicate distance text while RestedXP-Navigator owns the waypoint.
+- The underlying native C_Navigation world position remains active and continues to anchor the RestedXP-Navigator marker.
+- Added distance directly beside the RestedXP-Navigator Blizzard-ping marker.
+- Distance text inherits the marker color: blue for travel/non-threat, green for assist/turn-in, orange for attack and red for warnings.
+- Kept the existing close-range stem and NPC-snap logic unchanged.
+
+## 1.5.13
+- Fixed a critical regression in 1.5.12 that unconditionally hid the Blizzard-style world marker after the NPC-snap anchor calculation.
+- Restored the normal marker rendering path for both native 2D waypoint fallback and smart NPC snapping.
+- Added a defensive protected refresh so a transient nameplate/API error cannot permanently break the marker update loop.
+
+## 1.5.12
+- Fixed a regression where smart NPC snapping could make the world marker disappear.
+- The Blizzard navigation marker is now always anchored to the valid native C_Navigation frame first; NPC snapping is only applied as a safe optional refinement.
+- NPC snapping is now conservative: only an exact RestedXP NPC-name match or an active-quest-related visible nameplate may replace the native 2D anchor.
+- Hidden, transparent, recycled or off-screen nameplates are rejected automatically.
+- Removed the broad nearest-friendly-NPC fallback because it could select the wrong unit or an unusable nameplate.
+- The Blizzard stem remains visible for nearby snapped NPC targets, while the close-range ground-lift correction is disabled during NPC snapping.
+
+## 1.5.11
+- Added smart vertical NPC snapping for close-range RestedXP interaction targets.
+- RestedXP map coordinates are fundamentally 2D, so multi-floor NPCs can otherwise appear on the ground floor even when the NPC is upstairs.
+- Within 40 yd, Turn-in, Accept, Talk, Buy/Vendor, Trainer and similar interaction steps can now snap the Blizzard-style marker to a matching visible nameplate.
+- Exact RestedXP NPC names are preferred; quest-related friendly units are the next priority, with a nearby friendly-NPC fallback for vendor/trainer-style instructions.
+- When snapped to an NPC, the long ground stem is hidden so the marker follows the NPC's actual on-screen vertical position instead of pointing to the 2D terrain waypoint.
+- Normal travel, kill, loot, corpse and other positional targets continue to use the existing world waypoint behavior.
+
+## 1.5.10
+- Improved close-range positioning of the Blizzard world marker.
+- The Blizzard ground stem now dynamically extends upward below roughly 28 yd while its bottom remains anchored to the actual target position.
+- This prevents the marker head from visually sinking into the ground as the player approaches the destination.
+- The correction ramps in smoothly and reaches its strongest effect only at very short range.
+
+## 1.5.9
+- Replaced the custom RestedXP-Navigator world-marker artwork with the actual Blizzard PingUI atlases already shipped in the WoW client.
+- Travel/Goto uses Blizzard's OnMyWay marker, Kill uses Attack, Turn-in uses Assist, Dangerous/Elite/Boss uses Warning, and general interaction/loot/talk objectives use NonThreat.
+- The close-range vertical position line now uses Blizzard's `Ping_GroundMarker_Pin_*` asset instead of a custom beam.
+- The circular marker background and stroke use Blizzard's `Ping_GroundMarker_BG_*` and `Ping_GroundMarker_Stroke_*` atlases.
+- No Blizzard image files are copied into the addon; the addon references the client's built-in atlases directly.
+- At more than 65 yd only the marker head is shown; at 65 yd or closer the Blizzard ground pin/stem is added.
+
+## 1.5.8
+- Reworked the world-marker context assets around Blizzard's visual language while keeping all artwork original to RestedXP-Navigator.
+- Added distinct marker styles for generic objectives, travel, quest turn-in, kill, warning/dangerous targets, loot/collect, talk/interact, accept, flight, portal, hearth, transport and corpse navigation.
+- Kill targets use an amber sword marker, turn-ins use a green flag, travel uses a blue downward arrow, dangerous/elite/boss-style objectives use a red warning marker, and generic objectives retain a blue diamond style.
+
+## 1.5.7
+- Updated the custom world-marker art to a more Blizzard-inspired visual language while remaining fully original RestedXP-Navigator assets.
+- The world-space beam now appears only at close range (default: 65 yd). At longer distances only the floating marker/icon remains visible.
+- Improved the marker silhouette to better match Blizzard-style navigation pings: thinner beam, smaller floating icon and a darker circular badge with a clearer glow ring.
+- The beam toggle now controls only the beam itself; the floating marker icon can remain visible even when the target is farther away.
+
+## 1.5.6
+- Adjusted the custom in-world marker visual so the beam rises upward from the target point instead of extending downward into the ground.
+- The halo/context icon now floats above the target point, creating a clearer world-space marker for corpse runs and normal navigation.
+- Minor visual tuning for the marker pulse and overlay sizing.
+
+## 1.5.5
+- Fixed the custom world-marker beam/context overlay not appearing reliably: the RestedXP-Navigator visual now anchors to Blizzard's navigation frame from UIParent instead of being parented inside the native frame.
+- Added corpse world-marker support. While dead, the Navigator now uses the resolved corpse position as its native user waypoint, so the in-world marker/beam can guide the corpse run as well as the existing HUD and minimap guidance.
+- Added an original RestedXP-Navigator corpse/skull context icon.
+- The world-marker overlay re-anchors continuously so it follows recycled or repositioned Blizzard navigation frames reliably.
+
+## 1.5.4
+- Added original RestedXP-Navigator world-marker artwork; no WaypointUI code or assets are included.
+- Added an optional animated cyan world-space beam, halo and context icon attached to Blizzard's native navigation frame.
+- Added a fully original context-icon set for Kill, Loot, Travel, Talk, Accept, Turn-in, Flight, Portal, Hearth and transport targets.
+- Added dynamic ETA based on actual progress toward the active RestedXP target with smoothed measured movement speed.
+- Improved arrival detection: the old native marker is released at close range, after passing very close to it, or after the 30-second safety timeout.
+- During marker handover the new RestedXP target can already be shown in the header/HUD while the previous native marker remains visible.
+
+## 1.5.3
+- Added native-marker handover: when RestedXP advances to a new target, the previous in-world marker can remain briefly while the new target is already shown in the Navigator header/HUD.
+- The previous native marker is released as soon as the player reaches roughly 8 yd from it, or after a maximum of 30 seconds.
+- This avoids abrupt marker jumps while respecting Blizzard's one-native-user-waypoint limitation.
+
+## 1.5.1
+- Added context-sensitive icons to the in-world target header.
+- Travel/walking, kill, loot/collect, talk, quest accept/turn-in, flight, portal, Hearthstone and transport targets now use matching icons.
+- Kept the native Blizzard in-world navigation marker and RestedXP target header behavior unchanged.
+
+## 1.5.0
+- Added an optional native in-world RestedXP target marker using Blizzard's built-in Forever navigation system.
+- The marker follows the current RestedXP navigation point and uses Blizzard's native diamond/distance presentation.
+- Smart travel routes prefer the immediate travel approach point where available.
+- The feature is disabled by default and can be enabled under General -> Native in-world target marker.
+- Existing quest/user super-tracking is preserved and restored where possible when the feature releases control.
+- Added an optional streamer-style target header with RestedXP target name, distance and approximate ETA above the native world marker.
+
 ## 1.4.0
 - Promoted the tested 1.4.0 development line to the stable 1.4.0 release.
 - Added quest-object / collectible markers for RestedXP object-location loops on the World Map and Minimap.
@@ -10,7 +189,6 @@
 - Synchronized all public and internal version strings to 1.4.0 and removed obsolete beta labels from user-facing diagnostics.
 
 ### 1.4.0 development history
-
 ## 1.4.0-beta5
 - Increased the vertical spacing between the navigation distance and the Grind XP block.
 - The XP progress text, percentage bar and grind instruction now sit visibly lower for a cleaner HUD layout.

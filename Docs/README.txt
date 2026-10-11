@@ -1,4 +1,4 @@
-RestedXP-Navigator 1.4.0
+RestedXP-Navigator 1.5.27
 
 A visual navigation companion for RestedXP Guides on WoW Forever.
 
@@ -18,8 +18,13 @@ Grind XP HUD
 - ETA is hidden during grind steps so the HUD remains focused on XP progress.
 - Grind progress hides automatically when the threshold is reached or the guide leaves the grind step.
 
-
 FEATURES
+
+Native In-World Marker
+- Optional Blizzard-native world-space navigation marker for the current RestedXP target
+- Uses the built-in Forever navigation diamond and distance presentation
+- Preserves/restores existing user waypoint or quest super-tracking where possible
+- Optional compact target header with RestedXP target name, distance and approximate ETA
 
 Navigation
 - Direct navigation to the active RestedXP destination
@@ -110,3 +115,84 @@ The addon provides visual navigation only. It does not automate movement, combat
 
 No TomTom or RestedXP-TomTom dependency is required.
 
+
+NPC ANCHOR TEST
+---------------
+Select a visible NPC and use:
+/rxpnav npctest
+
+The Blizzard-style marker will try to anchor directly to that NPC's visible
+nameplate for 120 seconds. The marker turns into the green Assist style and
+shows "NPC TEST: <name>" so the test state is obvious.
+
+Status:
+/rxpnav npctest status
+
+Stop:
+/rxpnav npctest off
+
+If no nameplate is found, keep the NPC visible and enable friendly nameplates.
+
+
+NPC TEST NOTE (1.5.19)
+----------------------
+The diagnostic temporarily enables the relevant Blizzard friendly/enemy
+nameplate CVar for the selected NPC. The previous setting is restored when the
+test stops, expires, or the UI session ends. An overhead NPC name by itself is
+not necessarily a C_NamePlate frame; the actual Blizzard nameplate frame is
+required for reliable screen-space anchoring.
+
+
+FRIENDLY NPC NAMEPLATES (1.5.21)
+--------------------------------
+Friendly NPCs require the dedicated `nameplateShowFriendlyNpcs` CVar in
+addition to the general friendly-nameplate setting. The NPC test enables both
+temporarily and restores the previous values afterwards.
+
+
+SAFETY / BLIZZARD API POLICY (1.5.23)
+------------------------------------
+RestedXP-Navigator deliberately stays inside Blizzard's supported addon model.
+
+- No automatic combat actions, targeting, spell casting, item use or macro execution.
+- No automatic ping sending.
+- No attempts to measure restricted nameplate/world-frame geometry.
+- No automatic changes to player nameplate CVars or other UI preferences.
+- No manipulation of Blizzard's native SuperTrackedFrame alpha/state.
+- The NPC anchor test is explicit diagnostic functionality only and works only
+  with nameplates Blizzard already exposes under the player's own UI settings.
+- If Blizzard marks an API/region as protected, restricted or secret, the addon
+  falls back instead of trying to bypass that restriction.
+
+
+
+NATIVE WAYPOINT VISUALS (1.5.24)
+--------------------------------
+The duplicate Blizzard SuperTrackedFrame visuals are hidden cosmetically only
+while RestedXP-Navigator owns the waypoint. The addon uses post-update
+`hooksecurefunc` hooks and hides only visible child regions. It does not alter
+Blizzard's navigation-state alpha table or native navigation logic. If a region
+is forbidden, the addon leaves it untouched.
+
+
+NATIVE WAYPOINT VISUALS (1.5.25)
+--------------------------------
+When RestedXP-Navigator owns the user waypoint, Blizzard's visible
+`SuperTrackedFrame` is hidden as a whole. The underlying `C_Navigation` frame
+is not disabled or altered and remains the anchor for the custom marker.
+
+
+NATIVE WAYPOINT VISUALS (1.5.26)
+--------------------------------
+The visible Blizzard SuperTrackedFrame child regions are suppressed with alpha
+only while RestedXP-Navigator owns the waypoint. A cosmetic OnUpdate hook runs
+after Blizzard's own frame update so the native distance text cannot reappear.
+The underlying navigation frame and navigation state are not modified.
+
+
+NATIVE WAYPOINT VISUALS (1.5.27)
+--------------------------------
+The native Blizzard SuperTrackedFrame is visually suppressed with the same
+state-based mechanism that was validated in v1.5.15. The underlying user
+waypoint and C_Navigation frame remain active; only the duplicate Blizzard
+presentation is hidden while RestedXP-Navigator owns the waypoint.
