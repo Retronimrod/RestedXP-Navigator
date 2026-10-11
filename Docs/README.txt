@@ -25,6 +25,7 @@ Native In-World Marker
 - Optional Blizzard-native world-space navigation marker for the current RestedXP target
 - Uses the built-in Forever navigation diamond and distance presentation
 - Preserves/restores existing user waypoint or quest super-tracking where possible
+- Optional compact target header with RestedXP target name, distance and approximate ETA
 
 Navigation
 - Direct navigation to the active RestedXP destination
