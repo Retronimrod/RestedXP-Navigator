@@ -1,4 +1,4 @@
-RestedXP-Navigator 1.5.0
+RestedXP-Navigator 1.5.1
 
 A visual navigation companion for RestedXP Guides on WoW Forever.
 
