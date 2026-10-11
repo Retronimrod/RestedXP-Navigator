@@ -3,7 +3,7 @@
 ## Notes: Navigation companion for RXPGuides with minimap, world map and HUD guidance.
 ## Notes-deDE: Navigations-Erweiterung für RXPGuides mit Minimap-, Weltkarten- und HUD-Navigation.
 ## Author: Fabian
-## Version: 1.5.0
+## Version: 1.5.1
 ## IconTexture: Interface\AddOns\RXP_Navigator\Media\RXPNav_IconRound.tga
 ## Category: Quests
 ## Category-deDE: Quests
