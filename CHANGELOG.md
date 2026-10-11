@@ -6,6 +6,7 @@
 - Smart travel routes prefer the immediate travel approach point where available.
 - The feature is disabled by default and can be enabled under General -> Native in-world target marker.
 - Existing quest/user super-tracking is preserved and restored where possible when the feature releases control.
+- Added an optional streamer-style target header with RestedXP target name, distance and approximate ETA above the native world marker.
 
 ## 1.4.0
 - Promoted the tested 1.4.0 development line to the stable 1.4.0 release.
