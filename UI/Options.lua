@@ -259,6 +259,9 @@ local function BuildGeneralPage(panel)
     MakeCheckbox(panel, page, L("worldMarkerNative"), 18, -82,
         function() return db.showWorldMarkerNative == true end,
         function(v) db.showWorldMarkerNative = v end)
+    MakeCheckbox(panel, page, L("worldMarkerHeader"), 340, -82,
+        function() return db.showWorldMarkerHeader ~= false end,
+        function(v) db.showWorldMarkerHeader = v end)
 
     local themeLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     themeLabel:SetPoint("TOPLEFT", 18, -130)
