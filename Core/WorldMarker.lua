@@ -108,7 +108,7 @@ local function UpdateHeader(target)
         title = API.GetTargetInstruction and API:GetTargetInstruction(target.element) or "RestedXP Target"
     end
 
-    local _, distance = API.GetHUDNavigationMetrics and API:GetHUDNavigationMetrics(target.element) or nil, nil
+    local distance
     if API.GetHUDNavigationMetrics then
         local _, d = API:GetHUDNavigationMetrics(target.element)
         distance = d
