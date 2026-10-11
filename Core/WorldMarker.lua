@@ -15,6 +15,124 @@ local owned = false
 local lastOwnedKey
 local blockedTargetKey
 local previousState
+local headerFrame
+local headerTitle
+local headerDistance
+local headerETA
+
+local function CreateHeader()
+    if headerFrame then return headerFrame end
+
+    local frame = CreateFrame("Frame", "RXPNavigatorWorldMarkerHeader", UIParent)
+    frame:SetSize(330, 44)
+    frame:SetPoint("TOP", UIParent, "TOP", 0, -42)
+    frame:SetFrameStrata("HIGH")
+    frame:SetFrameLevel(40)
+    frame:EnableMouse(false)
+
+    local bg = frame:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.015, 0.025, 0.035, 0.88)
+
+    local top = frame:CreateTexture(nil, "BORDER")
+    top:SetPoint("TOPLEFT", 0, 0)
+    top:SetPoint("TOPRIGHT", 0, 0)
+    top:SetHeight(1)
+    top:SetColorTexture(0.12, 0.70, 0.95, 0.85)
+
+    local bottom = frame:CreateTexture(nil, "BORDER")
+    bottom:SetPoint("BOTTOMLEFT", 0, 0)
+    bottom:SetPoint("BOTTOMRIGHT", 0, 0)
+    bottom:SetHeight(1)
+    bottom:SetColorTexture(0.12, 0.70, 0.95, 0.45)
+
+    local icon = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    icon:SetPoint("LEFT", frame, "LEFT", 10, 2)
+    icon:SetText("|cff2cc8ff◆|r")
+
+    headerTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    headerTitle:SetPoint("TOPLEFT", frame, "TOPLEFT", 34, -7)
+    headerTitle:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -76, -7)
+    headerTitle:SetJustifyH("LEFT")
+    headerTitle:SetWordWrap(false)
+
+    headerDistance = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    headerDistance:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -7)
+    headerDistance:SetJustifyH("RIGHT")
+    headerDistance:SetTextColor(0.30, 0.85, 1.00, 1)
+
+    headerETA = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    headerETA:SetPoint("TOPLEFT", headerTitle, "BOTTOMLEFT", 0, -3)
+    headerETA:SetTextColor(0.72, 0.75, 0.78, 1)
+
+    frame:Hide()
+    headerFrame = frame
+    return frame
+end
+
+local function HideHeader()
+    if headerFrame then headerFrame:Hide() end
+end
+
+local function TruncateTitle(text, maxChars)
+    text = tostring(text or "")
+    maxChars = maxChars or 42
+    if #text <= maxChars then return text end
+    return text:sub(1, math.max(1, maxChars - 3)) .. "..."
+end
+
+local function FormatHeaderETA(seconds)
+    if type(seconds) ~= "number" or seconds < 0 or seconds ~= seconds then return "" end
+    seconds = math.min(seconds, 359999)
+    local rounded = math.floor(seconds + 0.5)
+    local h = math.floor(rounded / 3600)
+    local m = math.floor((rounded % 3600) / 60)
+    local sec = rounded % 60
+    if h > 0 then
+        return string.format("about %d:%02d:%02d", h, m, sec)
+    end
+    return string.format("about %d:%02d", m, sec)
+end
+
+local function UpdateHeader(target)
+    local db = API:GetDB()
+    if not db or db.showWorldMarkerHeader == false or not owned or not target or not target.element then
+        HideHeader()
+        return
+    end
+
+    local frame = CreateHeader()
+    local resolved = API.GetResolvedTarget and API:GetResolvedTarget(target.element, { ordinal = 1 }) or nil
+    local title = resolved and (resolved.title or resolved.instruction) or nil
+    if not title or title == "" then
+        title = API.GetTargetInstruction and API:GetTargetInstruction(target.element) or "RestedXP Target"
+    end
+
+    local _, distance = API.GetHUDNavigationMetrics and API:GetHUDNavigationMetrics(target.element) or nil, nil
+    if API.GetHUDNavigationMetrics then
+        local _, d = API:GetHUDNavigationMetrics(target.element)
+        distance = d
+    end
+
+    headerTitle:SetText(TruncateTitle(title, 42))
+
+    if type(distance) == "number" then
+        if API.FormatHUDDistance then
+            headerDistance:SetText(API:FormatHUDDistance(distance))
+        else
+            headerDistance:SetText(string.format("%d yd", math.floor(distance + 0.5)))
+        end
+
+        local speed = 7.0
+        if IsMounted and IsMounted() then speed = 14.0 end
+        headerETA:SetText(FormatHeaderETA(distance / math.max(0.1, speed)))
+    else
+        headerDistance:SetText("")
+        headerETA:SetText("")
+    end
+
+    frame:Show()
+end
 
 local function GetXY(pos)
     if not pos then return nil end
@@ -269,6 +387,7 @@ function WorldMarker:RefreshNow()
         missingSince = nil
         blockedTargetKey = nil
         RestorePreviousState()
+        HideHeader()
         return
     end
 
@@ -279,11 +398,13 @@ function WorldMarker:RefreshNow()
         if not missingSince then missingSince = GetTime and GetTime() or 0 end
         local now = GetTime and GetTime() or 0
         if now - missingSince >= MISSING_GRACE then RestorePreviousState() end
+        HideHeader()
         return
     end
 
     missingSince = nil
-    SetDesiredTarget(target)
+    local active = SetDesiredTarget(target)
+    if active then UpdateHeader(target) else HideHeader() end
 end
 
 function WorldMarker:GetStatus()
