@@ -1,6 +1,6 @@
 # RestedXP-Navigator
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/Retronimrod/RestedXP-Navigator/releases)
+[![Version](https://img.shields.io/badge/version-1.6.11-blue)](https://github.com/Retronimrod/RestedXP-Navigator/releases)
 [![WoW Forever](https://img.shields.io/badge/WoW%20Forever-1.60.1-orange)](https://www.curseforge.com/wow/addons/restedxp-navigator)
 [![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-lightgrey)](LICENSE)
 

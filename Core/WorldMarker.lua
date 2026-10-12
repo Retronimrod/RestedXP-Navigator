@@ -40,19 +40,28 @@ local headerDistance
 local headerETA
 
 local PING_TEXTURE_KITS = {
-    -- Exact Blizzard PingUI texture kits.
+    -- Final simplified Blizzard-native marker mapping.
+    -- Green: quest accept/turn-in, vendor, innkeeper/hearth, trainer.
+    -- Blue arrow: movement/travel.
+    -- Orange sword: combat/kill.
+    -- Blue diamond: everything else.
     default = "NonThreat",
-    accept = "NonThreat",
-    loot = "NonThreat",
-    talk = "NonThreat",
-    flight = "OnMyWay",
-    portal = "OnMyWay",
-    hearth = "OnMyWay",
-    map = "OnMyWay",
-    travel = "OnMyWay",
+    accept = "Assist",
     turnin = "Assist",
+    vendor = "Assist",
+    train = "Assist",
+    hearth = "Assist",
+
+    travel = "OnMyWay",
+    map = "OnMyWay",
+    portal = "OnMyWay",
+
     kill = "Attack",
-    warning = "Warning",
+    warning = "Attack",
+
+    talk = "NonThreat",
+    flight = "NonThreat",
+    loot = "NonThreat",
     corpse = "NonThreat",
 }
 
@@ -60,35 +69,63 @@ local PING_TEXTURE_KITS = {
 local function DetectIconStepType(target, title, instruction)
     local element = target and target.element or nil
     if element and element.corpseNav then return "corpse" end
-    local stepType = API.DetectStepType and API:DetectStepType(element) or nil
-    if stepType == "accept" or stepType == "turnin" or stepType == "kill" or stepType == "loot" or stepType == "talk" or stepType == "travel" then
-        return stepType
-    end
 
+    local stepType = API.DetectStepType and API:DetectStepType(element) or nil
     local text = string.lower(tostring(title or "") .. " " .. tostring(instruction or ""))
+
+    -- Explicit semantic instructions have priority over a generic "talk" step.
+    if text:find("turn in", 1, true) or text:find("turnin", 1, true)
+       or text:find("hand in", 1, true) or text:find("abgeben", 1, true)
+       or text:find("abgabe", 1, true) then
+        return "turnin"
+    end
+    if text:find("accept", 1, true) or text:find("pick up", 1, true)
+       or text:find("take quest", 1, true) or text:find("annehmen", 1, true) then
+        return "accept"
+    end
+    if text:find("vendor", 1, true) or text:find("vendor trash", 1, true)
+       or text:find("buy ", 1, true) or text:find("purchase", 1, true)
+       or text:find("sell ", 1, true) or text:find("repair", 1, true)
+       or text:find("kaufe", 1, true) or text:find("verkaufe", 1, true) then
+        return "vendor"
+    end
+    if text:find("innkeeper", 1, true) or text:find("hearthstone", 1, true)
+       or text:find("set hearth", 1, true) or text:find("bind ", 1, true)
+       or text:find("gasthaus", 1, true) or text:find("ruhestein", 1, true) then
+        return "hearth"
+    end
+    if text:find("flight master", 1, true) or text:find("flight path", 1, true)
+       or text:find("fly to", 1, true) or text:find("take flight", 1, true)
+       or text:find("flugmeister", 1, true) or text:find("flugpunkt", 1, true) then
+        return "flight"
+    end
+    if text:find("kill", 1, true) or text:find("slay", 1, true)
+       or text:find("slain", 1, true) or text:find("defeat", 1, true)
+       or text:find("töte", 1, true) or text:find("toete", 1, true) then
+        return "kill"
+    end
     if text:find("dangerous", 1, true) or text:find("warning", 1, true)
        or text:find("elite", 1, true) or text:find("boss", 1, true)
        or text:find("gefährlich", 1, true) or text:find("gefaehrlich", 1, true) then
         return "warning"
     end
-    if text:find("kill", 1, true) or text:find("slay", 1, true) or text:find("slain", 1, true) or text:find("defeat", 1, true)
-       or text:find("töte", 1, true) or text:find("toete", 1, true) then
-        return "kill"
-    end
-    if text:find("loot", 1, true) or text:find("collect", 1, true) or text:find("gather", 1, true)
-       or text:find("sammel", 1, true) or text:find("plünder", 1, true) or text:find("pluender", 1, true) then
+    if text:find("loot", 1, true) or text:find("collect", 1, true)
+       or text:find("gather", 1, true) or text:find("sammel", 1, true)
+       or text:find("plünder", 1, true) or text:find("pluender", 1, true) then
         return "loot"
     end
-    if text:find("turn in", 1, true) or text:find("turnin", 1, true) or text:find("hand in", 1, true)
-       or text:find("abgeben", 1, true) or text:find("abgabe", 1, true) then
-        return "turnin"
+
+    if stepType == "accept" or stepType == "turnin" or stepType == "kill"
+       or stepType == "loot" or stepType == "travel" then
+        return stepType
     end
-    if text:find("accept", 1, true) or text:find("pick up", 1, true) or text:find("annehmen", 1, true) then
-        return "accept"
-    end
-    if text:find("talk", 1, true) or text:find("speak", 1, true) or text:find("sprich", 1, true) or text:find("rede mit", 1, true) then
+    if stepType == "talk" then return "talk" end
+
+    if text:find("talk", 1, true) or text:find("speak", 1, true)
+       or text:find("sprich", 1, true) or text:find("rede mit", 1, true) then
         return "talk"
     end
+
     return stepType
 end
 
@@ -98,6 +135,13 @@ local function ResolveHeaderIconKey(target, title, instruction)
 
     local stepType = DetectIconStepType(target, title, instruction)
     local transport = API.GetTransportHint and API:GetTransportHint(element) or nil
+
+    if stepType == "accept" then return "accept" end
+    if stepType == "turnin" then return "turnin" end
+    if stepType == "kill" then return "kill" end
+    if stepType == "vendor" then return "vendor" end
+    if stepType == "hearth" then return "hearth" end
+    if stepType == "flight" then return "flight" end
 
     if stepType == "travel" then
         if transport == "Hearthstone" then return "hearth" end
@@ -404,12 +448,19 @@ local function CapturePreviousState()
     end
 end
 
+local nativeNavigationWarningShown = false
 local function EnableNativeNavigationCVar()
-    if not (C_CVar and type(C_CVar.GetCVar) == "function" and type(C_CVar.SetCVar) == "function") then return end
+    -- Safety policy: never change the player's Blizzard navigation setting.
+    -- We only read it and rely on the user/client configuration already in place.
+    if not (C_CVar and type(C_CVar.GetCVar) == "function") then return true end
     local ok, value = pcall(C_CVar.GetCVar, CVAR)
-    if ok and tostring(value) ~= "1" then
-        pcall(C_CVar.SetCVar, CVAR, "1")
+    if not ok then return true end
+    if tostring(value) == "1" then return true end
+    if not nativeNavigationWarningShown and API and API.Print then
+        nativeNavigationWarningShown = true
+        API:Print("World Marker: Blizzard In-Game Navigation is disabled. Enable it in the game settings to use in-world markers.")
     end
+    return false
 end
 
 local function RestorePreviousState()
@@ -712,7 +763,7 @@ function WorldMarker:GetStatus()
         pendingTargetKey = pendingTarget and pendingTarget.key or nil,
         arrivalHoldSeconds = ARRIVAL_HOLD_SECONDS,
         arrivalRadiusYards = ARRIVAL_RADIUS_YARDS,
-        beamShowDistanceYards = BEAM_SHOW_DISTANCE_YARDS,
+        beamShowDistanceYards = tonumber(db and db.worldMarkerBeamDistance) or BEAM_SHOW_DISTANCE_YARDS,
         activeTargetDistance = self:GetActiveTargetDistance(),
         activeIconKey = self:GetActiveIconKey(),
         activePingTextureKit = self:GetActivePingTextureKit(),

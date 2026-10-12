@@ -1,5 +1,97 @@
 # RestedXP-Navigator Changelog
 
+## 1.6.11
+- Made the in-addon What's New panel scrollable so long release histories no longer overflow the window.
+- Replaced the old "Select link" control with an "Open CurseForge" button.
+- Added a safe external-link handler: custom clients may open the URL directly when they expose an explicit URL launcher; standard Blizzard clients fall back to a selectable/copyable URL dialog.
+- Updated the in-addon What's New content for v1.6.11.
+
+## 1.6.10
+- Updated creator credit in the Info page to "Fabian aka Nimri".
+- Added the CurseForge profile link for nimri82 as a selectable/copyable field.
+- Added a "Select link" button for quick copying from the WoW UI.
+- Updated the in-addon What's New section.
+
+## 1.6.9
+- Redesigned and enlarged the standalone Control Center.
+- Fixed the World Marker preview layout; preview rendering is now isolated from the controls and uses fixed dimensions.
+- Added account/profile management with a global all-characters mode and per-character profile selection.
+- Added create, save, apply and delete operations for named profiles.
+- Added a dedicated Appearance page.
+- Added optional custom colors for interaction, travel, combat and default Blizzard PingUI markers.
+- Added independent ground-ring color, opacity and size controls.
+- Expanded World Marker configuration for marker scale, beam range and NPC anchor range.
+- Expanded minimap, world-map, HUD and corpse-run sizing/animation controls.
+- Added an Info page with creator information, current version and a What's New section.
+
+## 1.6.8
+- Reverted the in-world marker visuals to Blizzard's native PingUI atlases.
+- Removed the custom semantic marker heads, custom beams and custom colored marker-ring assets from the package.
+- Final marker mapping: green Assist for quest accept/turn-in, vendor, innkeeper/hearth and trainer; blue On My Way arrow for travel; orange Attack sword for combat; blue NonThreat diamond for all remaining targets.
+- Kept only the RestedXP-Navigator oval floor ring as a custom visual, tinted to the active Blizzard marker color.
+- Existing safe NPC/nameplate anchoring and native-navigation fallback remain unchanged.
+
+## 1.6.7
+- Removed the small vertical stroke below the upper crescent on the custom marker heads.
+- Marker heads now match the desired Blizzard-like top silhouette more closely.
+
+## 1.6.6
+- Fixed the visible gap between marker head and beam.
+- The marker head now overlaps the beam slightly so the whole marker reads as one connected graphic again.
+
+## 1.6.5
+- Removed the unwanted second crescent above the marker beam.
+- Rebuilt all four beam assets from scratch as clean vertical glow lines only.
+- The only remaining crescent is the intended horizontal crescent directly beneath the marker symbol.
+- Tightened the symbol/crescent-to-beam join for a cleaner Blizzard-like silhouette.
+
+## 1.6.4
+- Corrected world-marker proportions to match the approved preview asset more closely.
+- Reduced marker head size, beam width, and ground-ring size.
+- Kept beam heights unchanged so the marker remains readable at distance.
+- Fixes oversized quest/Vendor/NPC markers in the 9-75 yd range.
+
+## 1.6.3
+- Fixed the in-game marker proportions to match the approved marker reference.
+- Removed close-range beam stretching: the vertical beam no longer grows as the player approaches the target.
+- Standard world markers now use a fixed 86 px beam; NPC/nameplate markers use the shorter 43 px beam.
+- Tightened the head-to-beam attachment slightly so the symbol/crescent sits cleanly on the beam.
+- Marker color, symbol and ground-ring assets from v1.6.2 are unchanged.
+
+## 1.6.2
+- Added the approved semantic world-marker asset set from the provided design reference.
+- The marker shape stays consistent; only symbol and color change by objective type.
+- Quest accept: yellow exclamation mark.
+- Quest turn-in: yellow question mark.
+- Kill/combat: red crossed swords.
+- Vendor: green money bag.
+- Innkeeper/Hearthstone: green hearth spiral.
+- Flight master/flight path: green wing.
+- Generic travel/talk/loot objectives continue to use the blue diamond.
+- Improved objective classification so vendor, innkeeper, flight, accept and turn-in instructions override a generic Talk step when the instruction clearly identifies the action.
+- Assets are split into head, beam and ground-ring textures so the beam can still scale dynamically at close range.
+- No QuestMaster code or assets are included; the assets in this build are derived solely from the user-approved marker reference supplied for RestedXP-Navigator.
+
+## 1.6.1
+- Added an original oval ground ring beneath close-range in-world waypoint markers.
+- The ring is anchored to the bottom of the marker stem to make the marker look visually planted on the terrain.
+- Ground-ring color automatically follows the marker type (travel, assist, attack, warning, etc.).
+- Added World Marker options for enabling/disabling the ring and adjusting its size.
+- The ground ring is intentionally disabled for NPC-nameplate anchors because a nameplate is not a reliable terrain-ground position.
+- Uses a new original `RXPNav_GroundRing.tga` asset; no third-party addon code or artwork is included.
+
+## 1.6.0
+- Added **Smart NPC Anchor**: interaction objectives can automatically attach the in-world marker to an exact visible NPC nameplate, preserving the NPC's real screen height without reading restricted nameplate geometry.
+- NPC anchoring is read-only and never changes Blizzard nameplate CVars. If no exact visible NPC nameplate exists, navigation safely falls back to the normal user-waypoint/C_Navigation marker.
+- The addon no longer enables Blizzard in-game navigation via CVar; it only reads the existing setting and warns once if the user has disabled it.
+- Added configurable world-marker distance text, scale, beam activation range and NPC anchor range.
+- Added a new standalone **RestedXP-Navigator Control Center** with a modern sidebar/card layout built from scratch for this addon.
+- Added a live World Marker style preview using Blizzard PingUI atlases already included with the game.
+- Added dedicated General, Navigation, World Marker, Maps, Corpse Run and Advanced pages.
+- Kept the explicit NPC anchor diagnostic while removing any need to modify player nameplate settings.
+- Cleaned and consolidated the in-world marker renderer to remove obsolete experimental paths and restricted nameplate measurement code.
+- No QuestMaster code, textures, icons or other GPL assets are included; only general interaction/design concepts informed this independent implementation.
+
 ## 1.5.27
 - Restored the exact native-waypoint suppression strategy that was already proven to work in v1.5.15.
 - The regression was introduced when the safety-hardening pass removed the `SuperTrackedFrameMixin:SetTargetAlphaForState()` suppression that prevented Blizzard's own alpha lerp from restoring the gold waypoint and distance.

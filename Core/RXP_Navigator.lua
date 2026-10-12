@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = "1.5.27"
+local ADDON_VERSION = "1.6.11"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -236,6 +236,34 @@ local defaults = {
     showWorldMarkerNative = false,
     showWorldMarkerHeader = true,
     showWorldMarkerBeam = true,
+    showWorldMarkerDistance = true,
+    worldMarkerBeamDistance = 65,
+    worldMarkerScale = 1.0,
+    worldMarkerNPCAutoAnchor = true,
+    worldMarkerNPCMaxDistance = 75,
+    worldMarkerHideBlizzard = true,
+    showWorldMarkerGroundRing = true,
+    worldMarkerGroundRingScale = 1.0,
+    worldMarkerGroundRingAlpha = 0.72,
+    worldMarkerCustomColors = false,
+    markerAssistR = 0.23,
+    markerAssistG = 0.95,
+    markerAssistB = 0.34,
+    markerTravelR = 0.18,
+    markerTravelG = 0.72,
+    markerTravelB = 1.00,
+    markerAttackR = 1.00,
+    markerAttackG = 0.62,
+    markerAttackB = 0.10,
+    markerDefaultR = 0.22,
+    markerDefaultG = 0.68,
+    markerDefaultB = 1.00,
+    worldMarkerGroundRingUseMarkerColor = true,
+    worldMarkerGroundRingR = 0.18,
+    worldMarkerGroundRingG = 0.72,
+    worldMarkerGroundRingB = 1.00,
+    profileUseGlobal = true,
+    profileSelected = "Default",
 }
 
 local db
@@ -3698,6 +3726,125 @@ Navigator.rxpEventBridgeReady = false
 -- prevents the main Lua chunk from growing back toward WoW's 200-local limit.
 Navigator.API = Navigator.API or {}
 function Navigator.API:GetDB() return db end
+
+local function RXPNavigatorCharacterKey()
+    local name = UnitName and UnitName("player") or "Unknown"
+    local realm = GetRealmName and GetRealmName() or "Realm"
+    return tostring(name) .. " - " .. tostring(realm)
+end
+
+local function EnsureProfileStorage()
+    RXPNavigatorDB = RXPNavigatorDB or {}
+    RXPNavigatorDB.profileStore = RXPNavigatorDB.profileStore or {}
+    RXPNavigatorDB.profileCharacters = RXPNavigatorDB.profileCharacters or {}
+    if RXPNavigatorDB.profileUseGlobal == nil then RXPNavigatorDB.profileUseGlobal = true end
+    if type(RXPNavigatorDB.profileSelected) ~= "string" or RXPNavigatorDB.profileSelected == "" then
+        RXPNavigatorDB.profileSelected = "Default"
+    end
+end
+
+local function CopyProfileSettings(source, destination)
+    if type(source) ~= "table" or type(destination) ~= "table" then return end
+    for k in pairs(defaults) do
+        if k ~= "profileUseGlobal" and k ~= "profileSelected" then
+            local v = source[k]
+            if type(v) ~= "table" then destination[k] = v end
+        end
+    end
+end
+
+local function SnapshotCurrentProfile()
+    local t = {}
+    if db then CopyProfileSettings(db, t) end
+    return t
+end
+
+function Navigator.API:EnsureProfiles()
+    EnsureProfileStorage()
+    if not RXPNavigatorDB.profileStore.Default then
+        RXPNavigatorDB.profileStore.Default = SnapshotCurrentProfile()
+    end
+end
+
+function Navigator.API:GetCharacterProfileKey()
+    return RXPNavigatorCharacterKey()
+end
+
+function Navigator.API:GetProfileNames()
+    self:EnsureProfiles()
+    local names = {}
+    for name in pairs(RXPNavigatorDB.profileStore) do names[#names+1] = name end
+    table.sort(names, function(a,b)
+        if a == "Default" then return true end
+        if b == "Default" then return false end
+        return string.lower(a) < string.lower(b)
+    end)
+    return names
+end
+
+function Navigator.API:GetActiveProfileName()
+    self:EnsureProfiles()
+    if RXPNavigatorDB.profileUseGlobal ~= false then
+        return RXPNavigatorDB.profileSelected or "Default"
+    end
+    return RXPNavigatorDB.profileCharacters[RXPNavigatorCharacterKey()]
+        or RXPNavigatorDB.profileSelected or "Default"
+end
+
+function Navigator.API:SaveProfile(name)
+    self:EnsureProfiles()
+    name = tostring(name or ""):gsub("^%s+",""):gsub("%s+$","")
+    if name == "" then return false, "Profile name is empty." end
+    RXPNavigatorDB.profileStore[name] = SnapshotCurrentProfile()
+    if RXPNavigatorDB.profileUseGlobal ~= false then
+        RXPNavigatorDB.profileSelected = name
+    else
+        RXPNavigatorDB.profileCharacters[RXPNavigatorCharacterKey()] = name
+    end
+    return true
+end
+
+function Navigator.API:ApplyProfile(name)
+    self:EnsureProfiles()
+    local profile = RXPNavigatorDB.profileStore[name]
+    if type(profile) ~= "table" then return false, "Profile not found." end
+    CopyProfileSettings(profile, RXPNavigatorDB)
+    db = RXPNavigatorDB
+    if RXPNavigatorDB.profileUseGlobal ~= false then
+        RXPNavigatorDB.profileSelected = name
+    else
+        RXPNavigatorDB.profileCharacters[RXPNavigatorCharacterKey()] = name
+    end
+    return true
+end
+
+function Navigator.API:DeleteProfile(name)
+    self:EnsureProfiles()
+    if name == "Default" then return false, "The Default profile cannot be deleted." end
+    if not RXPNavigatorDB.profileStore[name] then return false, "Profile not found." end
+    RXPNavigatorDB.profileStore[name] = nil
+    for key, selected in pairs(RXPNavigatorDB.profileCharacters) do
+        if selected == name then RXPNavigatorDB.profileCharacters[key] = "Default" end
+    end
+    if RXPNavigatorDB.profileSelected == name then RXPNavigatorDB.profileSelected = "Default" end
+    self:ApplyProfile("Default")
+    return true
+end
+
+function Navigator.API:SetGlobalProfileMode(enabled)
+    self:EnsureProfiles()
+    RXPNavigatorDB.profileUseGlobal = enabled and true or false
+    local name = self:GetActiveProfileName()
+    if RXPNavigatorDB.profileStore[name] then self:ApplyProfile(name) end
+end
+
+function Navigator.API:SaveActiveProfile()
+    self:EnsureProfiles()
+    local name = self:GetActiveProfileName()
+    if name and RXPNavigatorDB.profileStore[name] then
+        RXPNavigatorDB.profileStore[name] = SnapshotCurrentProfile()
+    end
+end
 function Navigator.API:GetVersion() return ADDON_VERSION end
 function Navigator.API:BeginInspectorCapture(label) if Navigator.Debug and Navigator.Debug.BeginCapture then Navigator.Debug:BeginCapture(label) end end
 function Navigator.API:EndInspectorCapture() if Navigator.Debug and Navigator.Debug.EndCapture then Navigator.Debug:EndCapture() end end
@@ -3914,6 +4061,7 @@ Navigator:SetScript("OnEvent", function(self, event, arg1)
         CopyDefaults()
     elseif event == "PLAYER_LOGIN" then
         if not db then CopyDefaults() end
+        if Navigator.API and Navigator.API.EnsureProfiles then Navigator.API:EnsureProfiles() end
         Navigator.RXPBridge:EnsureWaypointEngine()
         Navigator.RXPBridge:SetupEventBridge()
         if not overlay then BuildMinimapOverlay() end
@@ -3930,6 +4078,7 @@ Navigator:SetScript("OnEvent", function(self, event, arg1)
         Navigator.RXPData:Invalidate()
         RefreshAll()
     elseif event == "PLAYER_LOGOUT" then
+        if Navigator.API and Navigator.API.SaveActiveProfile then Navigator.API:SaveActiveProfile() end
         Navigator.RXPBridge:RestoreArrowSetting()
     end
 end)

@@ -1,4 +1,4 @@
-RestedXP-Navigator 1.5.27
+RestedXP-Navigator 1.6.11
 
 A visual navigation companion for RestedXP Guides on WoW Forever.
 
@@ -196,3 +196,17 @@ The native Blizzard SuperTrackedFrame is visually suppressed with the same
 state-based mechanism that was validated in v1.5.15. The underlying user
 waypoint and C_Navigation frame remain active; only the duplicate Blizzard
 presentation is hidden while RestedXP-Navigator owns the waypoint.
+
+WORLD MARKER INTELLIGENCE (1.6.0)
+---------------------------------
+For interactive RestedXP objectives, the navigator can attach its own marker to
+an exact visible Blizzard NPC nameplate. The addon never reads restricted
+nameplate geometry and never changes nameplate CVars. When no exact nameplate is
+available, the existing user-waypoint/C_Navigation path remains the fallback.
+
+CONTROL CENTER (1.6.0)
+----------------------
+The default options experience is now a standalone RestedXP-Navigator Control
+Center with a sidebar, cards and a live Blizzard-style world-marker preview.
+The implementation is original to RestedXP-Navigator and uses no third-party
+code or assets.
