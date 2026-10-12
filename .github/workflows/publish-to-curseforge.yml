@@ -22,31 +22,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore staged release payload
+      - name: Restore staged source patch
         id: payload
         shell: bash
         run: |
-          if [ -f ".release-payload/version.txt" ]; then
+          if [ -f ".release-payload/version.txt" ] && compgen -G ".release-payload/sourcepatch-*.txt" > /dev/null; then
             VERSION="$(tr -d '\r\n ' < .release-payload/version.txt)"
-            echo "Restoring staged payload for v$VERSION"
-            cat .release-payload/chunk-*.txt | tr -d '\r\n' | base64 -d > "$RUNNER_TEMP/RestedXP-Navigator-v$VERSION.zip"
-            rm -rf "$RUNNER_TEMP/payload"
-            mkdir -p "$RUNNER_TEMP/payload"
-            unzip -q "$RUNNER_TEMP/RestedXP-Navigator-v$VERSION.zip" -d "$RUNNER_TEMP/payload"
-
-            test -d "$RUNNER_TEMP/payload/RXP_Navigator"
-            rm -rf Core UI Map Debug Docs Media
-            cp -R "$RUNNER_TEMP/payload/RXP_Navigator/Core" .
-            cp -R "$RUNNER_TEMP/payload/RXP_Navigator/UI" .
-            cp -R "$RUNNER_TEMP/payload/RXP_Navigator/Map" .
-            cp -R "$RUNNER_TEMP/payload/RXP_Navigator/Debug" .
-            cp -R "$RUNNER_TEMP/payload/RXP_Navigator/Docs" .
-            cp -R "$RUNNER_TEMP/payload/RXP_Navigator/Media" .
-            cp "$RUNNER_TEMP/payload/RXP_Navigator/RXP_Navigator.toc" .
-
-            if [ -f Docs/CHANGELOG.md ]; then
-              cp Docs/CHANGELOG.md CHANGELOG.md
-            fi
+            echo "Applying staged source patch for v$VERSION"
+            cat .release-payload/sourcepatch-*.txt | tr -d '\r\n' | base64 -d > "$RUNNER_TEMP/sourcepatch.tar.gz"
+            tar -xzf "$RUNNER_TEMP/sourcepatch.tar.gz" -C .
 
             if [ -f README.md ]; then
               sed -i -E "s/version-[0-9]+\.[0-9]+\.[0-9]+-blue/version-$VERSION-blue/" README.md || true
@@ -70,7 +54,6 @@ PY
             fi
 
             rm -rf .release-payload
-
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add -A
