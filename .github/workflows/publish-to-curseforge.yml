@@ -34,23 +34,6 @@ jobs:
 
             if [ -f README.md ]; then
               sed -i -E "s/version-[0-9]+\.[0-9]+\.[0-9]+-blue/version-$VERSION-blue/" README.md || true
-              python3 - "$VERSION" <<'PY'
-import pathlib, re, sys
-p = pathlib.Path("README.md")
-version = sys.argv[1]
-s = p.read_text()
-s = re.sub(r"## What's new in [0-9]+\.[0-9]+\.[0-9]+.*?(?=\n## Requirements)",
-f"""## What's new in {version}
-
-### Control Center, profiles and Blizzard-native world markers
-- Redesigned standalone Control Center with a fixed marker preview.
-- Global or per-character settings profiles with named presets.
-- Configurable marker sizes, colors, beam range, NPC anchor range and floor ring.
-- Blizzard-native PingUI marker styles for interactions, travel, combat and default goals.
-- Scrollable in-addon What's New history and creator/CurseForge information.
-""", s, flags=re.S)
-p.write_text(s)
-PY
             fi
 
             rm -rf .release-payload
