@@ -1,3 +1,8 @@
+## 1.7.0-beta.7
+- Removed EasyFind integration and restored standalone Navigator navigation.
+- World marker now anchors to Blizzard waypoint icon with navigation-frame fallback; independently drawn calm light beam, hidden near the goal and at the screen edge.
+- Additional minimap overlays are included in route cleanup.
+
 ## 1.7.0-beta.6
 - Optional, default-off EasyFind GPS bridge using documented public actions/events only. EasyFind remains a separately installed dependency.
 - Switch via General settings or /rxpnav easyfind on|off; native navigation yields while EasyFind owns the route.

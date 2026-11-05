@@ -4,6 +4,12 @@ RXPNavigator = {API = {GetDB = function() return db end}}
 CreateFrame = function() return {RegisterEvent = function() end, SetScript = function() end} end
 assert(loadfile('Core/WorldMarker.lua'))()
 assert(loadfile('Core/WorldMarkerVisual.lua'))()
+local navHost, waypointIcon = {}, {}
+SuperTrackedFrame = {Icon = waypointIcon}
+assert(RXPNavigator.WorldMarkerVisual:GetWaypointAnchor(navHost) == waypointIcon)
+SuperTrackedFrame = nil
+assert(RXPNavigator.WorldMarkerVisual:GetWaypointAnchor(navHost) == navHost)
+assert(RXPNavigator.WorldMarkerVisual:GetWaypointAnchor(nil) == nil)
 local marker = RXPNavigator.WorldMarker
 assert(marker:GetLocalRaidSymbolIndex(db) == nil)
 db.worldMarkerUseRaidSymbols = true
@@ -38,7 +44,7 @@ local function texture()
     return t
 end
 local f = {}
-for _, part in ipairs({'icon','bg','highlight','stroke','stem','distance','groundRing'}) do f[part] = texture() end
+for _, part in ipairs({'icon','bg','highlight','stroke','stem','beamGlow','distance','groundRing'}) do f[part] = texture() end
 db.worldMarkerCustomColors = true
 for i = 1, 8 do
     db.worldMarkerRaidSymbol = i
@@ -59,12 +65,14 @@ db.worldMarkerUseRaidSymbols = true
 db.worldMarkerRaidSymbol = 8
 for i = 1, 10 do
     apply(f, 'Assist', true, true, true)
-    assert(f.stem.width == 2 and f.stem.height == 24, 'Repeated styling must not shrink or stretch the stem')
+    assert(f.stem.width == 3 and f.stem.height == 84, 'Repeated styling must not shrink or stretch the stem')
 end
 assert(not f.groundRing.shown, 'No fake ground contact without terrain height')
+assert(f.beamGlow.shown and f.beamGlow.width == 13 and f.beamGlow.height == 84)
 assert(f.icon.width == 22 and f.icon.point[1] == 'BOTTOM' and f.icon.point[2] == f.stem)
 assert(not f.highlight.shown and not f.stroke.shown)
 apply(f, 'Assist', false, false, true)
 assert(f.icon.point[1] == 'BOTTOM' and f.icon.point[2] == f and f.icon.point[3] == 'CENTER')
 assert(not f.stem.shown and not f.groundRing.shown)
+assert(not f.beamGlow.shown)
 print('PASS: all eight local raid symbols, invalid settings, original colors and style restoration')

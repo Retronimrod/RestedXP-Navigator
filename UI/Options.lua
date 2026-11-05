@@ -268,17 +268,6 @@ local function BuildGeneralPage(panel)
     MakeCheckbox(panel, page, (GetLocale and GetLocale() == "deDE") and "Präzisionsmodus für Weltmarker" or "Precision world-marker mode", 18, -226,
         function() return db.worldMarkerPrecision ~= false end,
         function(v) db.worldMarkerPrecision = v end)
-    local easyFind = MakeCheckbox(panel, page, (GetLocale and GetLocale() == "deDE") and "Navigation über EasyFind GPS" or "Navigate with EasyFind GPS", 340, -226,
-        function() return db.useEasyFindGPS == true end,
-        function(v) Navigator.EasyFindBridge:SetEnabled(v); Navigator.EasyFindBridge:PrintStatus() end)
-    easyFind:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("EasyFind GPS")
-        GameTooltip:AddLine("EasyFind + EasyFind GPS separat installieren. EasyFind übernimmt Route, Pfeil und Weltmarker. Ohne kompatible API bleibt die direkte Navigation aktiv. Status: /rxpnav easyfind status", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    easyFind:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
     local de = GetLocale and GetLocale() == "deDE"
     MakeCheckbox(panel, page, de and "Raid-Symbol als lokalen Zielmarker nutzen" or "Use raid symbol for local target marker", 340, -116,
         function() return db.worldMarkerUseRaidSymbols == true end,

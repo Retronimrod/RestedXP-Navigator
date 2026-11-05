@@ -102,6 +102,9 @@ local function BuildMarkerFrame(name, parent)
     -- Blizzard PingUI atlases, with optional local raid-target symbol artwork.
     f.stem = f:CreateTexture(nil, 'BACKGROUND', nil, 1)
     f.stem:SetPoint('BOTTOM', f, 'CENTER', 0, 0)
+    f.beamGlow = f:CreateTexture(nil, 'BACKGROUND', nil, 0)
+    f.beamGlow:SetPoint('BOTTOM', f, 'CENTER', 0, 0)
+    f.beamGlow:Hide()
 
     f.bg = f:CreateTexture(nil, 'BACKGROUND', nil, 2)
     f.bg:SetPoint('BOTTOM', f.stem, 'TOP', 0, -8)
@@ -156,7 +159,11 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
         SetAtlasSafe(f.stem, pinAtlas, true)
         if precision then
             f.stem:SetColorTexture(1, 1, 1, 0.85)
-            f.stem:SetSize(2, 24)
+            f.stem:SetSize(3, 84)
+            if f.beamGlow then
+                f.beamGlow:SetColorTexture(1, 1, 1, 0.16)
+                f.beamGlow:SetSize(13, 84)
+            end
         elseif shortStem then
             local w, h = f.stem:GetSize()
             w = tonumber(w) or 8
@@ -189,6 +196,16 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     f.icon:SetPoint('CENTER', f.bg, 'CENTER')
 
     local color = GetConfiguredKitColor(kit, db)
+    if f.beamGlow then
+        f.beamGlow:SetVertexColor(color[1], color[2], color[3], 1)
+        if precision and showStem then f.beamGlow:Show() else f.beamGlow:Hide() end
+    end
+    if precision and showStem and CreateColor and f.stem.SetGradient then
+        f.stem:SetGradient('VERTICAL', CreateColor(color[1], color[2], color[3], 0.9), CreateColor(color[1], color[2], color[3], 0))
+        if f.beamGlow and f.beamGlow.SetGradient then
+            f.beamGlow:SetGradient('VERTICAL', CreateColor(color[1], color[2], color[3], 0.18), CreateColor(color[1], color[2], color[3], 0))
+        end
+    end
 
     if db and db.worldMarkerCustomColors == true then
         f.bg:SetVertexColor(color[1], color[2], color[3], 1)
@@ -322,6 +339,7 @@ local function ResetMarkerParent(f)
     if not f then return end
     if f.groundRing then f.groundRing:Hide() end
     if f.stem then f.stem:Hide() end
+    if f.beamGlow then f.beamGlow:Hide() end
     if f.bg then f.bg:Hide() end
     if f.highlight then f.highlight:Hide() end
     if f.stroke then f.stroke:Hide() end
@@ -443,14 +461,23 @@ local function ObtainNavigationFrame()
     return frame
 end
 
+function Visual:GetWaypointAnchor(frame)
+    if not frame then return nil end
+    -- Public Blizzard UI regions only. Follow the rendered waypoint icon's
+    -- position, not the NPC nameplate or our decorative beam/head center.
+    local face = _G.SuperTrackedFrame
+    return (face and face.Icon) or frame
+end
+
 local function EnsureWorldFrame(frame)
     if not frame then return nil end
+    local anchor = Visual:GetWaypointAnchor(frame)
     if not worldFrame then worldFrame = BuildMarkerFrame('RXPNavigatorWorldMarkerFrame', UIParent) end
-    if worldFrame.rxpNavigationAnchor ~= frame then
+    if worldFrame.rxpNavigationAnchor ~= anchor then
         worldFrame:SetParent(UIParent)
         worldFrame:ClearAllPoints()
-        worldFrame:SetPoint('CENTER', frame, 'CENTER', 0, 0)
-        worldFrame.rxpNavigationAnchor = frame
+        worldFrame:SetPoint('CENTER', anchor, 'CENTER', 0, 0)
+        worldFrame.rxpNavigationAnchor = anchor
     end
     worldFrame:SetFrameStrata('HIGH')
     worldFrame:SetFrameLevel(95)
@@ -463,17 +490,7 @@ local function EnsureNPCAutoFrame(plate)
     return npcAnchorFrame
 end
 
-function Visual:ReleaseForExternalNavigation()
-    if worldFrame then worldFrame:Hide() end
-    ResetMarkerParent(npcAnchorFrame)
-    if nativeSuppressed then RestoreNativeSuppression() end
-end
-
 function Visual:Refresh()
-    if Navigator.EasyFindBridge and Navigator.EasyFindBridge:SuppressNative() then
-        self:ReleaseForExternalNavigation()
-        return
-    end
     local db = API:GetDB()
     ApplyNativeSuppression()
 
@@ -532,9 +549,16 @@ function Visual:Refresh()
 
     local f = EnsureWorldFrame(frame)
     f:SetScale(scale)
+    local clamped = false
+    if C_Navigation and type(C_Navigation.WasClampedToScreen) == 'function' then
+        local ok, value = pcall(C_Navigation.WasClampedToScreen)
+        clamped = ok and value == true
+    end
     local showStem = db.showWorldMarkerBeam ~= false
         and type(distance) == 'number'
         and distance <= beamRange
+        and distance >= 8
+        and not clamped
 
     ApplyBlizzardStyle(f, kit, showStem, false, true)
     f.distance:SetText(FormatDistance(distance))
