@@ -5,6 +5,14 @@ local API = Navigator.API
 Navigator.WorldMarker = Navigator.WorldMarker or {}
 local WorldMarker = Navigator.WorldMarker
 
+-- These are local textures, not server-side raid markers or unit markings.
+function WorldMarker:GetLocalRaidSymbolIndex(db)
+    if not db or db.worldMarkerUseRaidSymbols ~= true then return nil end
+    local index = tonumber(db.worldMarkerRaidSymbol) or 3
+    if index ~= index or index < 1 or index > 8 then return 3 end
+    return math.floor(index)
+end
+
 local UPDATE_INTERVAL = 0.25
 local MISSING_GRACE = 1.0
 local CVAR = "showInGameNavigation"
@@ -319,10 +327,16 @@ local function UpdateHeader(target)
 
     headerTitle:SetText(TruncateTitle(title, 42))
     if headerIcon then
-        local kit = ResolveHeaderPingKit(target, title, instruction)
-        local atlas = ("Ping_Marker_Icon_%s"):format(kit)
-        if not SetBlizzardPingAtlas(headerIcon, atlas) then
-            SetBlizzardPingAtlas(headerIcon, "Ping_Marker_Icon_NonThreat")
+        local raidSymbol = WorldMarker:GetLocalRaidSymbolIndex(db)
+        if raidSymbol then
+            headerIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. raidSymbol)
+            headerIcon:SetTexCoord(0, 1, 0, 1)
+        else
+            local kit = ResolveHeaderPingKit(target, title, instruction)
+            local atlas = ("Ping_Marker_Icon_%s"):format(kit)
+            if not SetBlizzardPingAtlas(headerIcon, atlas) then
+                SetBlizzardPingAtlas(headerIcon, "Ping_Marker_Icon_NonThreat")
+            end
         end
     end
 

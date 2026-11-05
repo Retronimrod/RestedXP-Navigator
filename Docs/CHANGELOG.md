@@ -1,3 +1,7 @@
+## 1.7.0-beta.2
+- Optional local raid symbols for the in-world target marker and target header, with all eight symbols selectable in General settings.
+- Original symbol colors are preserved; the existing navigation style remains the default.
+
 ## 1.7.0-beta.1
 - Group target sharing via the current owned waypoint link.
 - Manual raid world-marker placement and per-marker clearing with secure click buttons.

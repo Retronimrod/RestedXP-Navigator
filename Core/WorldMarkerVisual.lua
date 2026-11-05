@@ -99,7 +99,7 @@ local function BuildMarkerFrame(name, parent)
     f.groundRing:SetPoint('CENTER', f, 'CENTER', 0, 0)
     f.groundRing:Hide()
 
-    -- Everything above the floor ring comes directly from Blizzard PingUI atlases.
+    -- Blizzard PingUI atlases, with optional local raid-target symbol artwork.
     f.stem = f:CreateTexture(nil, 'BACKGROUND', nil, 1)
     f.stem:SetPoint('BOTTOM', f, 'CENTER', 0, 0)
 
@@ -228,6 +228,18 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     f.highlight:Show()
     f.stroke:Show()
     f.icon:Show()
+
+    local raidSymbol = Navigator.WorldMarker and Navigator.WorldMarker:GetLocalRaidSymbolIndex(db)
+    if raidSymbol then
+        f.icon:SetTexture('Interface\\TargetingFrame\\UI-RaidTargetingIcon_' .. raidSymbol)
+        f.icon:SetTexCoord(0, 1, 0, 1)
+        f.icon:SetSize(28, 28)
+        -- Raid symbols retain their recognizable colors, even with custom colors.
+        f.icon:SetVertexColor(1, 1, 1, 1)
+        f.bg:Hide()
+        f.highlight:Hide()
+        f.stroke:Hide()
+    end
 end
 
 local function GetNamePlateForUnitSafe(unit)
