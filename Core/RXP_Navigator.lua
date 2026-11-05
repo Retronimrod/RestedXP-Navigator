@@ -239,6 +239,7 @@ local defaults = {
     showWorldMarkerDistance = true,
     worldMarkerBeamDistance = 65,
     worldMarkerScale = 1.0,
+    useEasyFindGPS = false,
     worldMarkerPrecision = true,
     worldMarkerUseRaidSymbols = false,
     worldMarkerRaidSymbol = 3,
@@ -2618,6 +2619,7 @@ local function GetPlayerPositionInDisplayedMap(displayMapID, allowOutside)
 end
 
 local function UpdateMinimapRoute()
+    if Navigator.EasyFindBridge and Navigator.EasyFindBridge:SuppressNative() then HideMinimapRoute() return end
     if not db or not db.enabled or not db.showMinimap then HideMinimapRoute() return end
     local rawElement = GetCurrentNavigationElement()
     if not rawElement then HideMinimapRoute() return end
@@ -2818,6 +2820,7 @@ end
 -- RestedXP world-map filtering moved to RXP_Navigator_WorldMapFilter.lua
 
 local function UpdateWorldMapRoute()
+    if Navigator.EasyFindBridge and Navigator.EasyFindBridge:SuppressNative() then HideWorldRoute() return end
     if not db or not db.enabled or not db.showWorldMap then HideWorldRoute() return end
     if not (WorldMapFrame and WorldMapFrame:IsShown()) then HideWorldRoute() return end
     if not EnsureWorldMapOverlay() then HideWorldRoute() return end
@@ -3458,6 +3461,7 @@ local function GetHUDNavigationMetrics(elementOverride)
 end
 
 local function UpdateHUDArrow(dt)
+    if Navigator.EasyFindBridge and Navigator.EasyFindBridge:SuppressNative() then HideGrindHUD(); HideHUDArrow() return end
     if not db or not db.enabled or not db.showHUDArrow then HideHUDArrow() return end
     if not hudArrowFrame then BuildHUDArrow() end
     ApplyHUDStyle()
@@ -3693,6 +3697,7 @@ local function UpdateHUDArrow(dt)
 end
 
 local function RefreshAll()
+    if Navigator.EasyFindBridge then Navigator.EasyFindBridge:Tick() end
     ApplyTheme()
     ResizeTargetMarker(targetDot, 0.82, db and db.minimapTargetSize)
     ResizeTargetMarker(worldTargetPin, 1.0, db and db.worldTargetSize)
@@ -3990,7 +3995,11 @@ function Navigator.API:HasTheme(key) return THEMES[key] ~= nil end
 SLASH_RXPNAV1 = "/rxpnav"
 SlashCmdList.RXPNAV = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
-    if msg == "groundtest" or msg:match("^groundtest%s") then
+    if msg == "easyfind on" then Navigator.EasyFindBridge:SetEnabled(true); Navigator.EasyFindBridge:PrintStatus()
+    elseif msg == "easyfind off" then Navigator.EasyFindBridge:SetEnabled(false); Navigator.EasyFindBridge:PrintStatus()
+    elseif msg == "easyfind resume" then Navigator.EasyFindBridge:Resume(); Navigator.EasyFindBridge:PrintStatus()
+    elseif msg == "easyfind status" or msg == "easyfind" then Navigator.EasyFindBridge:Tick(); Navigator.EasyFindBridge:PrintStatus()
+    elseif msg == "groundtest" or msg:match("^groundtest%s") then
         if Navigator.GroundTest then Navigator.GroundTest:Command(msg:match("^groundtest%s*(.*)$")) end
     elseif msg == "on" then db.enabled = true; RefreshAll(); Print("aktiviert")
     elseif msg == "off" then db.enabled = false; HideMinimapRoute(); HideWorldRoute(); HideHUDArrow(); Print("deaktiviert")

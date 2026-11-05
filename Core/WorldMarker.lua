@@ -668,7 +668,22 @@ local function SetDesiredTarget(target)
     return true
 end
 
+function WorldMarker:SuspendForExternalNavigation()
+    if owned and GetCurrentWaypointKey() ~= lastOwnedKey then
+        -- A different addon/user already replaced our point: do not restore
+        -- old super-tracking over the external navigation.
+        RelinquishToExternalWaypoint(nil)
+    else
+        RestorePreviousState()
+    end
+    HideHeader()
+end
+
 function WorldMarker:RefreshNow()
+    if Navigator.EasyFindBridge and Navigator.EasyFindBridge:SuppressNative() then
+        self:SuspendForExternalNavigation()
+        return
+    end
     local db = API:GetDB()
     if not db or not db.enabled or db.showWorldMarkerNative ~= true then
         missingSince = nil

@@ -463,7 +463,17 @@ local function EnsureNPCAutoFrame(plate)
     return npcAnchorFrame
 end
 
+function Visual:ReleaseForExternalNavigation()
+    if worldFrame then worldFrame:Hide() end
+    ResetMarkerParent(npcAnchorFrame)
+    if nativeSuppressed then RestoreNativeSuppression() end
+end
+
 function Visual:Refresh()
+    if Navigator.EasyFindBridge and Navigator.EasyFindBridge:SuppressNative() then
+        self:ReleaseForExternalNavigation()
+        return
+    end
     local db = API:GetDB()
     ApplyNativeSuppression()
 

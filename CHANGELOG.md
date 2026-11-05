@@ -1,3 +1,8 @@
+## 1.7.0-beta.6
+- Optional, default-off EasyFind GPS bridge using documented public actions/events only. EasyFind remains a separately installed dependency.
+- Switch via General settings or /rxpnav easyfind on|off; native navigation yields while EasyFind owns the route.
+- Async planning, late-result guards, manual-route priority and bounded target retries. Client testing required.
+
 ## 1.7.0-beta.5
 - Experimental ground-height comparison with /rxpnav groundtest; samples player Z and compares explicit/no-height waypoints at fixed X/Y. No confirmed terrain anchoring yet.
 - Compact precision appearance, consistent native anchor and direct target handover; no simulated terrain ring in precision mode.
