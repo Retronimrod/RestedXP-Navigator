@@ -406,51 +406,35 @@ local function ShouldSuppressNativeSuperTrack()
     return status and status.owned == true
 end
 
-local NATIVE_NAV_ALPHA_DEFAULTS = { Invalid=0.0, Occluded=0.6, InRange=1.0, Disabled=0.0 }
+-- Hide only the stock artwork. The native parent keeps its own alpha,
+-- OnUpdate and state table; our replacement is anchored independently.
+local nativeHidden = setmetatable({}, {__mode = 'k'})
 local nativeSuppressed = false
-
-local function SetNativeNavigationStateAlphas(frame, suppress)
-    if not frame or type(frame.SetTargetAlphaForState) ~= 'function' then return end
-    if not Enum or not Enum.NavigationState then return end
-    local values = suppress and {Invalid=0, Occluded=0, InRange=0, Disabled=0} or NATIVE_NAV_ALPHA_DEFAULTS
-    for name, alpha in pairs(values) do
-        local state = Enum.NavigationState[name]
-        if state ~= nil then pcall(frame.SetTargetAlphaForState, frame, state, alpha) end
+local function RestoreNativeSuppression()
+    for region, alpha in pairs(nativeHidden) do
+        pcall(region.SetAlpha, region, alpha)
+        nativeHidden[region] = nil
     end
+    nativeSuppressed = false
 end
 
 local function ApplyNativeSuppression()
-    local frame = _G.SuperTrackedFrame
-    local suppress = ShouldSuppressNativeSuperTrack()
-    if frame then
-        SetNativeNavigationStateAlphas(frame, suppress)
-        if suppress then
-            pcall(frame.SetAlpha, frame, 0)
-            if frame.Icon then pcall(frame.Icon.SetAlpha, frame.Icon, 0) end
-            if frame.IconBorder then pcall(frame.IconBorder.SetAlpha, frame.IconBorder, 0) end
-            if frame.DistanceText then pcall(frame.DistanceText.SetAlpha, frame.DistanceText, 0) end
-            if frame.Arrow then pcall(frame.Arrow.SetAlpha, frame.Arrow, 0) end
-        elseif nativeSuppressed then
-            pcall(frame.SetAlpha, frame, 1)
-            if frame.Icon then pcall(frame.Icon.SetAlpha, frame.Icon, 1) end
-            if frame.IconBorder then pcall(frame.IconBorder.SetAlpha, frame.IconBorder, 1) end
-            if frame.DistanceText then pcall(frame.DistanceText.SetAlpha, frame.DistanceText, 1) end
-            if frame.Arrow then pcall(frame.Arrow.SetAlpha, frame.Arrow, 1) end
+    local face = _G.SuperTrackedFrame
+    if not ShouldSuppressNativeSuperTrack() or not face then
+        if nativeSuppressed then RestoreNativeSuppression() end
+        return
+    end
+    for _, name in ipairs({'Icon', 'IconBorder', 'DistanceText', 'Arrow'}) do
+        local region = face[name]
+        if region and type(region.SetAlpha) == 'function' then
+            if nativeHidden[region] == nil then
+                local ok, alpha = pcall(region.GetAlpha, region)
+                nativeHidden[region] = ok and type(alpha) == 'number' and alpha or 1
+            end
+            pcall(region.SetAlpha, region, 0)
         end
     end
-    nativeSuppressed = suppress
-end
-
-local function RestoreNativeSuppression()
-    local frame = _G.SuperTrackedFrame
-    if not frame then return end
-    SetNativeNavigationStateAlphas(frame, false)
-    pcall(frame.SetAlpha, frame, 1)
-    if frame.Icon then pcall(frame.Icon.SetAlpha, frame.Icon, 1) end
-    if frame.IconBorder then pcall(frame.IconBorder.SetAlpha, frame.IconBorder, 1) end
-    if frame.DistanceText then pcall(frame.DistanceText.SetAlpha, frame.DistanceText, 1) end
-    if frame.Arrow then pcall(frame.Arrow.SetAlpha, frame.Arrow, 1) end
-    nativeSuppressed = false
+    nativeSuppressed = true
 end
 
 local function ObtainNavigationFrame()

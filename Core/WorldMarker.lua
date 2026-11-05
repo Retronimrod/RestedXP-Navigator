@@ -31,6 +31,7 @@ local missingSince
 local owned = false
 local lastOwnedKey
 local lastOwnedZ
+local nativeSelections = 0
 local blockedTargetKey
 local previousState
 local activeTarget
@@ -630,9 +631,15 @@ local function SetDesiredTarget(target)
     end
 
     if owned and lastOwnedKey == target.key and lastOwnedZ == target.z then
-        if C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
-            pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
+        if C_SuperTrack and type(C_SuperTrack.IsSuperTrackingUserWaypoint) == "function" then
+            local ok, tracking = pcall(C_SuperTrack.IsSuperTrackingUserWaypoint)
+            if ok and tracking == false then
+                RelinquishToExternalWaypoint(target.key)
+                return false
+            end
         end
+        -- Selecting the same tracked point again can restart native navigation
+        -- updates. Keep the existing engine anchor instead of reselecting it.
         return true
     end
 
@@ -663,6 +670,7 @@ local function SetDesiredTarget(target)
     end
 
     owned = true
+    nativeSelections = nativeSelections + 1
     lastOwnedKey = target.key
     lastOwnedZ = target.z
     return true
@@ -705,9 +713,6 @@ function WorldMarker:RefreshNow()
 
         local releaseOldMarker = ArrivalTargetReached() or ArrivalHoldExpired(now)
         if not releaseOldMarker then
-            if C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
-                pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
-            end
             UpdateHeader(target)
             return
         end
@@ -731,6 +736,21 @@ function WorldMarker:RefreshNow()
 end
 
 -- Only share the point actually owned by navigation, never a user's replacement.
+function WorldMarker:PrintAnchorStatus()
+    local desired = ResolveDesiredTarget()
+    API:Print("Marker-Version: " .. tostring(API:GetVersion()))
+    API:Print("Wegpunkt aktiv=" .. tostring(lastOwnedKey) .. "; angefordert=" .. tostring(desired and desired.key)
+        .. "; Blizzard-Punkt=" .. tostring(GetCurrentWaypointKey()) .. "; Neuauswahlen=" .. nativeSelections)
+    local function Value(fn)
+        if type(fn) ~= "function" then return "nicht verfügbar" end
+        local ok, value = pcall(fn)
+        return ok and tostring(value) or "nicht lesbar"
+    end
+    API:Print("Tracking=" .. Value(C_SuperTrack and C_SuperTrack.IsSuperTrackingUserWaypoint)
+        .. "; Bildschirmposition gültig=" .. Value(C_Navigation and C_Navigation.HasValidScreenPosition)
+        .. "; am Bildschirmrand=" .. Value(C_Navigation and C_Navigation.WasClampedToScreen))
+end
+
 function WorldMarker:GetShareableWaypointLink()
     local db = API:GetDB()
     if not db or not db.enabled or not owned or not activeTarget then return nil end

@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = "1.6.11"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.0-beta.8"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -3991,7 +3991,8 @@ function Navigator.API:HasTheme(key) return THEMES[key] ~= nil end
 SLASH_RXPNAV1 = "/rxpnav"
 SlashCmdList.RXPNAV = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
-    if msg == "groundtest" or msg:match("^groundtest%s") then
+    if msg == "markerstatus" then Navigator.WorldMarker:PrintAnchorStatus()
+    elseif msg == "groundtest" or msg:match("^groundtest%s") then
         if Navigator.GroundTest then Navigator.GroundTest:Command(msg:match("^groundtest%s*(.*)$")) end
     elseif msg == "on" then db.enabled = true; RefreshAll(); Print("aktiviert")
     elseif msg == "off" then db.enabled = false; HideMinimapRoute(); HideWorldRoute(); HideHUDArrow(); Print("deaktiviert")

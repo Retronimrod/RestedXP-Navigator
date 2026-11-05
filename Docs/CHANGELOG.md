@@ -1,3 +1,7 @@
+## 1.7.0-beta.8
+- Stop repeatedly selecting unchanged native navigation targets; hide stock artwork without altering parent/state alpha.
+- Correct version display and add /rxpnav markerstatus diagnostics. Visual client verification still required.
+
 ## 1.7.0-beta.7
 - Removed EasyFind integration and restored standalone Navigator navigation.
 - World marker now anchors to Blizzard waypoint icon with navigation-frame fallback; independently drawn calm light beam, hidden near the goal and at the screen edge.

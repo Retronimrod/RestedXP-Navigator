@@ -1,4 +1,5 @@
 local current, writes = nil, {}
+local tracking, selections = true, 0
 RXPNavigator = {API = {GetDB = function() return {enabled = true} end}}
 CreateFrame = function() return {RegisterEvent = function() end, SetScript = function() end} end
 UiMapPoint = {CreateFromCoordinates = function(map, x, y, z) return {uiMapID = map, position = {x = x, y = y}, z = z} end}
@@ -10,7 +11,9 @@ C_Map = {
         current = {uiMapID = point.uiMapID, position = point.position}
     end,
 }
-C_SuperTrack = {IsSuperTrackingAnything = function() return false end, SetSuperTrackedUserWaypoint = function() end}
+C_SuperTrack = {IsSuperTrackingAnything = function() return false end,
+    IsSuperTrackingUserWaypoint = function() return tracking end,
+    SetSuperTrackedUserWaypoint = function() selections = selections + 1 end}
 assert(loadfile('Core/WorldMarker.lua'))()
 local set
 for i = 1, 60 do
@@ -22,6 +25,8 @@ assert(set)
 local target = {key = '1:0.25000:0.75000', mapID = 1, x = 0.25, y = 0.75, z = 100}
 assert(set(target) and #writes == 1 and writes[1].z == 100)
 assert(set(target) and #writes == 1, 'Do not repeatedly reset an unchanged waypoint')
+for i = 1, 200 do assert(set(target)) end
+assert(selections == 1, 'Do not repeatedly select an unchanged native navigation target')
 target.z = 110
 assert(set(target) and #writes == 2 and writes[2].z == 110, 'Z-only changes must reach the client')
 target.z = nil
