@@ -1533,7 +1533,8 @@ local function DetectTransportHint(element)
     if tag == "fly" then return "Flight" end
     if tag == "fp" then return "Flight Path" end
     if tag == "hs" or tag == "hsbatching" then return "Hearthstone" end
-    if tag == "home" or tag == "bindlocation" then return "Hearthstone" end
+    if tag == "home" or tag == "bindlocation" then return nil end
+    if Navigator.HearthActions and Navigator.HearthActions:Classify(element, model) == "bind" then return nil end
 
     local text = LowerClean(GetTargetInstruction(element))
     if text == "" then return nil end
@@ -1552,8 +1553,10 @@ local function DetectStepType(element)
     if tag == "accept" or tag == "daily" then return "accept" end
     if tag == "turnin" or tag == "dailyturnin" then return "turnin" end
     if tag == "collect" or tag == "collectmultiple" then return "loot" end
+    if tag == "home" or tag == "bindlocation" then return "talk" end
+    if Navigator.HearthActions and Navigator.HearthActions:Classify(element, model) == "bind" then return "talk" end
     if tag == "fly" or tag == "fp" or tag == "goto" or tag == "waypoint" or tag == "zone" or
-       tag == "hs" or tag == "hsbatching" or tag == "home" or tag == "bindlocation" then return "travel" end
+       tag == "hs" or tag == "hsbatching" then return "travel" end
 
     -- Some parsed tags (complete/target/unitscan/mob) describe mechanics rather
     -- than intent, so retain text matching as a compatibility fallback.

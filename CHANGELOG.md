@@ -1,3 +1,6 @@
+## 1.7.0-beta.3
+- Fixed hearthstone binding steps incorrectly displaying Use your Hearthstone. Binding now retains normal navigation and is classified as an innkeeper interaction.
+
 ## 1.7.0-beta.2
 - Optional local raid symbols for the in-world target marker and target header, with all eight symbols selectable in General settings.
 - Original symbol colors are preserved; the existing navigation style remains the default.
