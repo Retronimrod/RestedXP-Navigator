@@ -1,3 +1,8 @@
+## 1.7.0-beta.1
+- Group target sharing via the current owned waypoint link.
+- Manual raid world-marker placement and per-marker clearing with secure click buttons.
+- Combat-safe toolbar visibility updates; no remote coordinate placement.
+
 # RestedXP-Navigator Changelog
 
 ## 1.6.11

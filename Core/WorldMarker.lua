@@ -707,6 +707,16 @@ function WorldMarker:RefreshNow()
     end
 end
 
+-- Only share the point actually owned by navigation, never a user's replacement.
+function WorldMarker:GetShareableWaypointLink()
+    local db = API:GetDB()
+    if not db or not db.enabled or not owned or not activeTarget then return nil end
+    if GetCurrentWaypointKey() ~= lastOwnedKey or lastOwnedKey ~= activeTarget.key then return nil end
+    if not (C_Map and type(C_Map.GetUserWaypointHyperlink) == "function") then return nil end
+    local ok, link = pcall(C_Map.GetUserWaypointHyperlink)
+    if ok and type(link) == "string" and link ~= "" then return link end
+end
+
 function WorldMarker:GetActiveResolvedTarget()
     local target = activeTarget
     if not target or not target.element then return nil end
