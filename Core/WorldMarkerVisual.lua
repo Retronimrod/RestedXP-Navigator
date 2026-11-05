@@ -17,6 +17,27 @@ local npcAnchorFrame
 local npcTestFrame
 local visibleNameplates = {}
 local npcTestGUID, npcTestName, npcTestUntil
+local visibleSince
+
+function Visual:IsWorldPointVisible()
+    -- A clamped point is a direction indicator, not a world position. Never
+    -- draw the normal world symbol at that arbitrary screen-edge location.
+    local ok, visible = pcall(function()
+        if not C_Navigation or type(C_Navigation.HasValidScreenPosition) ~= 'function'
+            or type(C_Navigation.WasClampedToScreen) ~= 'function' then return false end
+        if not C_Navigation.HasValidScreenPosition() or C_Navigation.WasClampedToScreen() then return false end
+        if C_Navigation.GetTargetState and Enum and Enum.NavigationState then
+            local state = C_Navigation.GetTargetState()
+            if state == Enum.NavigationState.Invalid or state == Enum.NavigationState.Disabled then return false end
+        end
+        return true
+    end)
+    if not ok or not visible then visibleSince = nil; return false end
+    local now = GetTime()
+    if not visibleSince then visibleSince = now end
+    -- Allow Blizzard's clamped -> world anchor to settle before showing art.
+    return now - visibleSince >= 0.15
+end
 
 local PING_KIT_COLORS = {
     OnMyWay = {0.18, 0.72, 1.00},
@@ -518,12 +539,9 @@ function Visual:Refresh()
     ResetMarkerParent(npcAnchorFrame)
 
     -- Blizzard navigation frame supplies the world-space screen position.
-    if C_Navigation and type(C_Navigation.HasValidScreenPosition) == 'function' then
-        local ok, valid = pcall(C_Navigation.HasValidScreenPosition)
-        if not ok or not valid then
-            if worldFrame then worldFrame:Hide() end
-            return
-        end
+    if not self:IsWorldPointVisible() then
+        if worldFrame then worldFrame:Hide() end
+        return
     end
     local frame = navFrame or ObtainNavigationFrame()
     if not frame then
@@ -579,6 +597,9 @@ events:SetScript('OnEvent', function(_, event, unit)
 end)
 
 events:SetScript('OnUpdate', function(_, dt)
+    -- Visibility is checked every rendered frame, independently of the
+    -- slower content/style refresh, to avoid one-frame off-screen flashes.
+    if not Visual:IsWorldPointVisible() and worldFrame then worldFrame:Hide() end
     elapsed = elapsed + (dt or 0)
     if elapsed < UPDATE_INTERVAL then return end
     elapsed = 0

@@ -1,3 +1,7 @@
+## 1.7.0-beta.9
+- Hide the entire world marker when the waypoint is off-screen/clamped; wait 150 ms before returning to its valid in-world anchor.
+- Character-height coupling while jumping remains unresolved.
+
 ## 1.7.0-beta.8
 - Stop repeatedly selecting unchanged native navigation targets; hide stock artwork without altering parent/state alpha.
 - Correct version display and add /rxpnav markerstatus diagnostics. Visual client verification still required.
