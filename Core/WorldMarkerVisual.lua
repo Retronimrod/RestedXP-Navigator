@@ -150,9 +150,14 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     SetAtlasSafe(f.highlight, bgAtlas, true)
     SetAtlasSafe(f.stroke, strokeAtlas, true)
 
+    local db = API:GetDB()
+    local precision = not db or db.worldMarkerPrecision ~= false
     if showStem then
         SetAtlasSafe(f.stem, pinAtlas, true)
-        if shortStem then
+        if precision then
+            f.stem:SetColorTexture(1, 1, 1, 0.85)
+            f.stem:SetSize(2, 24)
+        elseif shortStem then
             local w, h = f.stem:GetSize()
             w = tonumber(w) or 8
             h = tonumber(h) or 72
@@ -161,7 +166,7 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
         f.stem:Show()
 
         f.bg:ClearAllPoints()
-        f.bg:SetPoint('BOTTOM', f.stem, 'TOP', 0, -8)
+        f.bg:SetPoint('BOTTOM', f.stem, 'TOP', 0, precision and 0 or -8)
         f.highlight:ClearAllPoints()
         f.highlight:SetPoint('CENTER', f.bg, 'CENTER')
         f.stroke:ClearAllPoints()
@@ -169,7 +174,11 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     else
         f.stem:Hide()
         f.bg:ClearAllPoints()
-        f.bg:SetPoint('CENTER', f, 'CENTER', 0, 18)
+        if precision then
+            f.bg:SetPoint('BOTTOM', f, 'CENTER', 0, 0)
+        else
+            f.bg:SetPoint('CENTER', f, 'CENTER', 0, 18)
+        end
         f.highlight:ClearAllPoints()
         f.highlight:SetPoint('CENTER', f.bg, 'CENTER')
         f.stroke:ClearAllPoints()
@@ -179,7 +188,6 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     f.icon:ClearAllPoints()
     f.icon:SetPoint('CENTER', f.bg, 'CENTER')
 
-    local db = API:GetDB()
     local color = GetConfiguredKitColor(kit, db)
 
     if db and db.worldMarkerCustomColors == true then
@@ -201,7 +209,9 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     f.distance:SetTextColor(color[1], color[2], color[3], 1)
 
     local ringEnabled = db and db.showWorldMarkerGroundRing ~= false
-    if f.groundRing and ringEnabled and showGroundRing and showStem then
+    -- A screen-projected waypoint has no verified terrain height. Do not imply
+    -- a ground contact with an oval decal in precision mode.
+    if f.groundRing and not precision and ringEnabled and showGroundRing and showStem then
         local ringScale = tonumber(db.worldMarkerGroundRingScale) or 1.0
         ringScale = math.max(0.65, math.min(1.50, ringScale))
         local ringAlpha = tonumber(db.worldMarkerGroundRingAlpha) or 0.72
@@ -239,6 +249,17 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
         f.bg:Hide()
         f.highlight:Hide()
         f.stroke:Hide()
+    end
+    if precision then
+        f.highlight:Hide()
+        f.stroke:Hide()
+        f.icon:SetSize(22, 22)
+        if raidSymbol then
+            -- Keep the symbol's lower edge at the tip/anchor, rather than
+            -- inheriting the taller PingUI background's center offset.
+            f.icon:ClearAllPoints()
+            f.icon:SetPoint('BOTTOM', showStem and f.stem or f, showStem and 'TOP' or 'CENTER', 0, 0)
+        end
     end
 end
 
@@ -291,7 +312,7 @@ local function ParentMarkerToPlate(f, plate, yOffset)
     -- parented to Blizzard's nameplate and WoW maintains its screen position.
     f:SetParent(plate)
     f:ClearAllPoints()
-    f:SetPoint('BOTTOM', plate, 'TOP', 0, yOffset or 8)
+    f:SetPoint('CENTER', plate, 'TOP', 0, yOffset or 8)
     f:SetFrameStrata('TOOLTIP')
     f:SetFrameLevel(200)
     return true
@@ -425,9 +446,12 @@ end
 local function EnsureWorldFrame(frame)
     if not frame then return nil end
     if not worldFrame then worldFrame = BuildMarkerFrame('RXPNavigatorWorldMarkerFrame', UIParent) end
-    worldFrame:SetParent(UIParent)
-    worldFrame:ClearAllPoints()
-    worldFrame:SetPoint('CENTER', frame, 'CENTER', 0, 0)
+    if worldFrame.rxpNavigationAnchor ~= frame then
+        worldFrame:SetParent(UIParent)
+        worldFrame:ClearAllPoints()
+        worldFrame:SetPoint('CENTER', frame, 'CENTER', 0, 0)
+        worldFrame.rxpNavigationAnchor = frame
+    end
     worldFrame:SetFrameStrata('HIGH')
     worldFrame:SetFrameLevel(95)
     return worldFrame
@@ -467,7 +491,8 @@ function Visual:Refresh()
     -- Exact visible NPCs remain safely anchored to their Blizzard nameplate.
     -- The floor ring is deliberately disabled there because a nameplate is not
     -- a reliable terrain-ground coordinate.
-    local plate = FindExactNPCPlate(status)
+    local precision = db.worldMarkerPrecision ~= false
+    local plate = not precision and FindExactNPCPlate(status) or nil
     if plate then
         if worldFrame then worldFrame:Hide() end
         local f = EnsureNPCAutoFrame(plate)
@@ -482,6 +507,13 @@ function Visual:Refresh()
     ResetMarkerParent(npcAnchorFrame)
 
     -- Blizzard navigation frame supplies the world-space screen position.
+    if C_Navigation and type(C_Navigation.HasValidScreenPosition) == 'function' then
+        local ok, valid = pcall(C_Navigation.HasValidScreenPosition)
+        if not ok or not valid then
+            if worldFrame then worldFrame:Hide() end
+            return
+        end
+    end
     local frame = navFrame or ObtainNavigationFrame()
     if not frame then
         if worldFrame then worldFrame:Hide() end

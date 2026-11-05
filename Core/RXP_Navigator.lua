@@ -239,6 +239,7 @@ local defaults = {
     showWorldMarkerDistance = true,
     worldMarkerBeamDistance = 65,
     worldMarkerScale = 1.0,
+    worldMarkerPrecision = true,
     worldMarkerUseRaidSymbols = false,
     worldMarkerRaidSymbol = 3,
     worldMarkerNPCAutoAnchor = true,
@@ -3989,7 +3990,9 @@ function Navigator.API:HasTheme(key) return THEMES[key] ~= nil end
 SLASH_RXPNAV1 = "/rxpnav"
 SlashCmdList.RXPNAV = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
-    if msg == "on" then db.enabled = true; RefreshAll(); Print("aktiviert")
+    if msg == "groundtest" or msg:match("^groundtest%s") then
+        if Navigator.GroundTest then Navigator.GroundTest:Command(msg:match("^groundtest%s*(.*)$")) end
+    elseif msg == "on" then db.enabled = true; RefreshAll(); Print("aktiviert")
     elseif msg == "off" then db.enabled = false; HideMinimapRoute(); HideWorldRoute(); HideHUDArrow(); Print("deaktiviert")
     elseif msg == "toggle" then db.enabled = not db.enabled; if db.enabled then RefreshAll() else HideMinimapRoute(); HideWorldRoute(); HideHUDArrow() end; Print("Navigator: " .. (db.enabled and "an" or "aus"))
     elseif msg == "distance" then db.showDistance = not db.showDistance; RefreshAll(); Print("Distanzanzeige " .. (db.showDistance and "an" or "aus"))

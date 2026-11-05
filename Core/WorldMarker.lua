@@ -30,6 +30,7 @@ local elapsed = 0
 local missingSince
 local owned = false
 local lastOwnedKey
+local lastOwnedZ
 local blockedTargetKey
 local previousState
 local activeTarget
@@ -388,7 +389,7 @@ local function MakePoint(data)
     if UiMapPoint and type(UiMapPoint.CreateFromVector2D) == "function" and CreateVector2D then
         local okVector, vector = pcall(CreateVector2D, data.x, data.y)
         if okVector and vector then
-            local okPoint, point = pcall(UiMapPoint.CreateFromVector2D, data.mapID, vector)
+            local okPoint, point = pcall(UiMapPoint.CreateFromVector2D, data.mapID, vector, data.z)
             if okPoint and point then return point end
         end
     end
@@ -503,6 +504,7 @@ local function RestorePreviousState()
 
     owned = false
     lastOwnedKey = nil
+    lastOwnedZ = nil
     previousState = nil
     activeTarget = nil
     pendingTarget = nil
@@ -514,6 +516,7 @@ end
 local function RelinquishToExternalWaypoint(targetKey)
     owned = false
     lastOwnedKey = nil
+    lastOwnedZ = nil
     previousState = nil
     activeTarget = nil
     pendingTarget = nil
@@ -556,6 +559,11 @@ local function GetDesiredElement()
 end
 
 local function ResolveDesiredTarget()
+    local test = Navigator.GroundTest and Navigator.GroundTest:GetTarget()
+    if test then
+        return {element = test.element, mapID = test.mapID, x = test.x, y = test.y,
+            z = test.z, key = PointKey(test.mapID, test.x, test.y)}
+    end
     local element = GetDesiredElement()
     if not element then return nil end
 
@@ -621,7 +629,7 @@ local function SetDesiredTarget(target)
         return false
     end
 
-    if owned and lastOwnedKey == target.key then
+    if owned and lastOwnedKey == target.key and lastOwnedZ == target.z then
         if C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
             pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
         end
@@ -656,6 +664,7 @@ local function SetDesiredTarget(target)
 
     owned = true
     lastOwnedKey = target.key
+    lastOwnedZ = target.z
     return true
 end
 
@@ -687,7 +696,7 @@ function WorldMarker:RefreshNow()
     -- advances, keep the previous native marker alive briefly so the player can
     -- actually arrive at it. The Navigator header/HUD can already show the new
     -- destination during this handover.
-    if owned and activeTarget and target.key ~= activeTarget.key then
+    if db.worldMarkerPrecision == false and owned and activeTarget and target.key ~= activeTarget.key then
         pendingTarget = target
         if not arrivalHoldStartedAt then
             arrivalHoldStartedAt = now

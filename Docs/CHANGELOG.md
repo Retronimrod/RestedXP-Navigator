@@ -1,3 +1,7 @@
+## 1.7.0-beta.5
+- Experimental ground-height comparison with /rxpnav groundtest; samples player Z and compares explicit/no-height waypoints at fixed X/Y. No confirmed terrain anchoring yet.
+- Compact precision appearance, consistent native anchor and direct target handover; no simulated terrain ring in precision mode.
+
 ## 1.7.0-beta.3
 - Fixed hearthstone binding steps incorrectly displaying Use your Hearthstone. Binding now retains normal navigation and is classified as an innkeeper interaction.
 
