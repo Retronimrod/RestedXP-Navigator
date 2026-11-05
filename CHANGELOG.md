@@ -1,3 +1,37 @@
+## 1.7.0-beta.9
+- Hide the entire world marker when the waypoint is off-screen/clamped; wait 150 ms before returning to its valid in-world anchor.
+- Character-height coupling while jumping remains unresolved.
+
+## 1.7.0-beta.8
+- Stop repeatedly selecting unchanged native navigation targets; hide stock artwork without altering parent/state alpha.
+- Correct version display and add /rxpnav markerstatus diagnostics. Visual client verification still required.
+
+## 1.7.0-beta.7
+- Removed EasyFind integration and restored standalone Navigator navigation.
+- World marker now anchors to Blizzard waypoint icon with navigation-frame fallback; independently drawn calm light beam, hidden near the goal and at the screen edge.
+- Additional minimap overlays are included in route cleanup.
+
+## 1.7.0-beta.6
+- Optional, default-off EasyFind GPS bridge using documented public actions/events only. EasyFind remains a separately installed dependency.
+- Switch via General settings or /rxpnav easyfind on|off; native navigation yields while EasyFind owns the route.
+- Async planning, late-result guards, manual-route priority and bounded target retries. Client testing required.
+
+## 1.7.0-beta.5
+- Experimental ground-height comparison with /rxpnav groundtest; samples player Z and compares explicit/no-height waypoints at fixed X/Y. No confirmed terrain anchoring yet.
+- Compact precision appearance, consistent native anchor and direct target handover; no simulated terrain ring in precision mode.
+
+## 1.7.0-beta.3
+- Fixed hearthstone binding steps incorrectly displaying Use your Hearthstone. Binding now retains normal navigation and is classified as an innkeeper interaction.
+
+## 1.7.0-beta.2
+- Optional local raid symbols for the in-world target marker and target header, with all eight symbols selectable in General settings.
+- Original symbol colors are preserved; the existing navigation style remains the default.
+
+## 1.7.0-beta.1
+- Group target sharing via the current owned waypoint link.
+- Manual raid world-marker placement and per-marker clearing with secure click buttons.
+- Combat-safe toolbar visibility updates; no remote coordinate placement.
+
 # RestedXP-Navigator Changelog
 
 ## 1.5.27

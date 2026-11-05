@@ -95,16 +95,21 @@ end
 local function IsHearth(e)
     if type(e) ~= "table" or e.skip or e.completed then return false end
     local tag = GetTag(e)
-    if tag == "hs" or tag == "hsbatching" or tag == "home" or tag == "bindlocation" then return true end
+    if tag == "home" or tag == "bindlocation" then return false end
+    local model = API.GetNormalizedRXPData and API:GetNormalizedRXPData(e) or nil
+    local action = Navigator.HearthActions and Navigator.HearthActions:Classify(e, model)
+    if action then return action == "use" end
+    if tag == "hs" or tag == "hsbatching" then return true end
 
     local text = Clean(e.text) or Clean(e.tooltipText) or Clean(e.mapTooltip) or Clean(e.rawtext)
     local low = text and text:lower() or ""
     return low:find("hearth to ", 1, true) ~= nil
         or low:find("use your hearthstone", 1, true) ~= nil
         or low:find("hearthstone to ", 1, true) ~= nil
-        or low:find("ruhestein", 1, true) ~= nil
-        or low:find("pierre de foyer", 1, true) ~= nil
-        or low:find("piedra de hogar", 1, true) ~= nil
+        or low:find("nutze deinen ruhestein", 1, true) ~= nil
+        or low:find("benutze deinen ruhestein", 1, true) ~= nil
+        or low:find("utilisez votre pierre de foyer", 1, true) ~= nil
+        or low:find("usa tu piedra de hogar", 1, true) ~= nil
 end
 
 local function FindHearthInStep(step)

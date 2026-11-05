@@ -3,7 +3,7 @@
 ## Notes: Navigation companion for RXPGuides with minimap, world map and HUD guidance.
 ## Notes-deDE: Navigations-Erweiterung für RXPGuides mit Minimap-, Weltkarten- und HUD-Navigation.
 ## Author: Fabian
-## Version: 1.6.11
+## Version: 1.7.0-beta.9
 ## IconTexture: Interface\AddOns\RXP_Navigator\Media\RXPNav_IconRound.tga
 ## Category: Quests
 ## Category-deDE: Quests
@@ -21,6 +21,7 @@
 ## X-License: All Rights Reserved
 
 Core\RXP_Navigator.lua
+Core\HearthActions.lua
 Core\RXPBridge.lua
 Core\TargetResolver.lua
 Core\WorldMarker.lua
@@ -35,6 +36,7 @@ Core\RouteSmoother.lua
 UI\Presentation.lua
 Debug\Inspector.lua
 Debug\Diagnostics.lua
+Debug\GroundTest.lua
 UI\Options.lua
 UI\ControlCenter.lua
 UI\TooltipEngine.lua
@@ -44,3 +46,4 @@ Map\MapOverlays.lua
 Map\MinimapOverlays.lua
 Map\MinimapFuture.lua
 UI\MinimapButton.lua
+UI\GroupMarkers.lua
