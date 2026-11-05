@@ -36,9 +36,6 @@ local function Lower(value)
 end
 
 local function DetectKind(element, model)
-    local hearthAction = Navigator.HearthActions and Navigator.HearthActions:Classify(element, model)
-    if hearthAction == "bind" then return nil, nil end
-    if hearthAction == "use" then return "hearthstone", "Hearthstone" end
     local hint = API:GetTransportHint(element)
     if hint == "Hearthstone" then return "hearthstone", hint end
     if hint == "Flight" or hint == "Flight Path" then return "flight", hint end
@@ -48,8 +45,7 @@ local function DetectKind(element, model)
 
     local tag = model and (model.semanticTag or model.tag)
     tag = tag and tostring(tag):lower() or ""
-    if tag == "home" or tag == "bindlocation" then return nil, nil end
-    if tag == "hs" or tag == "hsbatching" then return "hearthstone", hint end
+    if tag == "hs" or tag == "hsbatching" or tag == "home" or tag == "bindlocation" then return "hearthstone", hint end
     if tag == "fly" or tag == "fp" or tag == "flygoto" then return "flight", hint end
 
     local text = Lower((model and model.instruction) or API:GetTargetInstruction(element) or element.text or element.title)

@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.0-beta.9"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.0-beta.10"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -239,7 +239,6 @@ local defaults = {
     showWorldMarkerDistance = true,
     worldMarkerBeamDistance = 65,
     worldMarkerScale = 1.0,
-    worldMarkerPrecision = true,
     worldMarkerUseRaidSymbols = false,
     worldMarkerRaidSymbol = 3,
     worldMarkerNPCAutoAnchor = true,
@@ -1534,8 +1533,7 @@ local function DetectTransportHint(element)
     if tag == "fly" then return "Flight" end
     if tag == "fp" then return "Flight Path" end
     if tag == "hs" or tag == "hsbatching" then return "Hearthstone" end
-    if tag == "home" or tag == "bindlocation" then return nil end
-    if Navigator.HearthActions and Navigator.HearthActions:Classify(element, model) == "bind" then return nil end
+    if tag == "home" or tag == "bindlocation" then return "Hearthstone" end
 
     local text = LowerClean(GetTargetInstruction(element))
     if text == "" then return nil end
@@ -1554,10 +1552,8 @@ local function DetectStepType(element)
     if tag == "accept" or tag == "daily" then return "accept" end
     if tag == "turnin" or tag == "dailyturnin" then return "turnin" end
     if tag == "collect" or tag == "collectmultiple" then return "loot" end
-    if tag == "home" or tag == "bindlocation" then return "talk" end
-    if Navigator.HearthActions and Navigator.HearthActions:Classify(element, model) == "bind" then return "talk" end
     if tag == "fly" or tag == "fp" or tag == "goto" or tag == "waypoint" or tag == "zone" or
-       tag == "hs" or tag == "hsbatching" then return "travel" end
+       tag == "hs" or tag == "hsbatching" or tag == "home" or tag == "bindlocation" then return "travel" end
 
     -- Some parsed tags (complete/target/unitscan/mob) describe mechanics rather
     -- than intent, so retain text matching as a compatibility fallback.
@@ -2255,7 +2251,6 @@ local function HideMinimapRoute()
     if minimapEdgeDistanceText then minimapEdgeDistanceText:Hide() end
     if distanceText then distanceText:Hide() end
     if Navigator.MinimapFuture and Navigator.MinimapFuture.HideAll then Navigator.MinimapFuture:HideAll() end
-    if Navigator.MinimapOverlays and Navigator.MinimapOverlays.HideAll then Navigator.MinimapOverlays:HideAll() end
 end
 
 local function GetWorldMapCanvas()
@@ -3991,10 +3986,7 @@ function Navigator.API:HasTheme(key) return THEMES[key] ~= nil end
 SLASH_RXPNAV1 = "/rxpnav"
 SlashCmdList.RXPNAV = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
-    if msg == "markerstatus" then Navigator.WorldMarker:PrintAnchorStatus()
-    elseif msg == "groundtest" or msg:match("^groundtest%s") then
-        if Navigator.GroundTest then Navigator.GroundTest:Command(msg:match("^groundtest%s*(.*)$")) end
-    elseif msg == "on" then db.enabled = true; RefreshAll(); Print("aktiviert")
+    if msg == "on" then db.enabled = true; RefreshAll(); Print("aktiviert")
     elseif msg == "off" then db.enabled = false; HideMinimapRoute(); HideWorldRoute(); HideHUDArrow(); Print("deaktiviert")
     elseif msg == "toggle" then db.enabled = not db.enabled; if db.enabled then RefreshAll() else HideMinimapRoute(); HideWorldRoute(); HideHUDArrow() end; Print("Navigator: " .. (db.enabled and "an" or "aus"))
     elseif msg == "distance" then db.showDistance = not db.showDistance; RefreshAll(); Print("Distanzanzeige " .. (db.showDistance and "an" or "aus"))

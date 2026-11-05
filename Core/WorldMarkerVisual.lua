@@ -17,27 +17,6 @@ local npcAnchorFrame
 local npcTestFrame
 local visibleNameplates = {}
 local npcTestGUID, npcTestName, npcTestUntil
-local visibleSince
-
-function Visual:IsWorldPointVisible()
-    -- A clamped point is a direction indicator, not a world position. Never
-    -- draw the normal world symbol at that arbitrary screen-edge location.
-    local ok, visible = pcall(function()
-        if not C_Navigation or type(C_Navigation.HasValidScreenPosition) ~= 'function'
-            or type(C_Navigation.WasClampedToScreen) ~= 'function' then return false end
-        if not C_Navigation.HasValidScreenPosition() or C_Navigation.WasClampedToScreen() then return false end
-        if C_Navigation.GetTargetState and Enum and Enum.NavigationState then
-            local state = C_Navigation.GetTargetState()
-            if state == Enum.NavigationState.Invalid or state == Enum.NavigationState.Disabled then return false end
-        end
-        return true
-    end)
-    if not ok or not visible then visibleSince = nil; return false end
-    local now = GetTime()
-    if not visibleSince then visibleSince = now end
-    -- Allow Blizzard's clamped -> world anchor to settle before showing art.
-    return now - visibleSince >= 0.15
-end
 
 local PING_KIT_COLORS = {
     OnMyWay = {0.18, 0.72, 1.00},
@@ -123,9 +102,6 @@ local function BuildMarkerFrame(name, parent)
     -- Blizzard PingUI atlases, with optional local raid-target symbol artwork.
     f.stem = f:CreateTexture(nil, 'BACKGROUND', nil, 1)
     f.stem:SetPoint('BOTTOM', f, 'CENTER', 0, 0)
-    f.beamGlow = f:CreateTexture(nil, 'BACKGROUND', nil, 0)
-    f.beamGlow:SetPoint('BOTTOM', f, 'CENTER', 0, 0)
-    f.beamGlow:Hide()
 
     f.bg = f:CreateTexture(nil, 'BACKGROUND', nil, 2)
     f.bg:SetPoint('BOTTOM', f.stem, 'TOP', 0, -8)
@@ -174,18 +150,9 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     SetAtlasSafe(f.highlight, bgAtlas, true)
     SetAtlasSafe(f.stroke, strokeAtlas, true)
 
-    local db = API:GetDB()
-    local precision = not db or db.worldMarkerPrecision ~= false
     if showStem then
         SetAtlasSafe(f.stem, pinAtlas, true)
-        if precision then
-            f.stem:SetColorTexture(1, 1, 1, 0.85)
-            f.stem:SetSize(3, 84)
-            if f.beamGlow then
-                f.beamGlow:SetColorTexture(1, 1, 1, 0.16)
-                f.beamGlow:SetSize(13, 84)
-            end
-        elseif shortStem then
+        if shortStem then
             local w, h = f.stem:GetSize()
             w = tonumber(w) or 8
             h = tonumber(h) or 72
@@ -194,7 +161,7 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
         f.stem:Show()
 
         f.bg:ClearAllPoints()
-        f.bg:SetPoint('BOTTOM', f.stem, 'TOP', 0, precision and 0 or -8)
+        f.bg:SetPoint('BOTTOM', f.stem, 'TOP', 0, -8)
         f.highlight:ClearAllPoints()
         f.highlight:SetPoint('CENTER', f.bg, 'CENTER')
         f.stroke:ClearAllPoints()
@@ -202,11 +169,7 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     else
         f.stem:Hide()
         f.bg:ClearAllPoints()
-        if precision then
-            f.bg:SetPoint('BOTTOM', f, 'CENTER', 0, 0)
-        else
-            f.bg:SetPoint('CENTER', f, 'CENTER', 0, 18)
-        end
+        f.bg:SetPoint('CENTER', f, 'CENTER', 0, 18)
         f.highlight:ClearAllPoints()
         f.highlight:SetPoint('CENTER', f.bg, 'CENTER')
         f.stroke:ClearAllPoints()
@@ -216,17 +179,8 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     f.icon:ClearAllPoints()
     f.icon:SetPoint('CENTER', f.bg, 'CENTER')
 
+    local db = API:GetDB()
     local color = GetConfiguredKitColor(kit, db)
-    if f.beamGlow then
-        f.beamGlow:SetVertexColor(color[1], color[2], color[3], 1)
-        if precision and showStem then f.beamGlow:Show() else f.beamGlow:Hide() end
-    end
-    if precision and showStem and CreateColor and f.stem.SetGradient then
-        f.stem:SetGradient('VERTICAL', CreateColor(color[1], color[2], color[3], 0.9), CreateColor(color[1], color[2], color[3], 0))
-        if f.beamGlow and f.beamGlow.SetGradient then
-            f.beamGlow:SetGradient('VERTICAL', CreateColor(color[1], color[2], color[3], 0.18), CreateColor(color[1], color[2], color[3], 0))
-        end
-    end
 
     if db and db.worldMarkerCustomColors == true then
         f.bg:SetVertexColor(color[1], color[2], color[3], 1)
@@ -247,9 +201,7 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     f.distance:SetTextColor(color[1], color[2], color[3], 1)
 
     local ringEnabled = db and db.showWorldMarkerGroundRing ~= false
-    -- A screen-projected waypoint has no verified terrain height. Do not imply
-    -- a ground contact with an oval decal in precision mode.
-    if f.groundRing and not precision and ringEnabled and showGroundRing and showStem then
+    if f.groundRing and ringEnabled and showGroundRing and showStem then
         local ringScale = tonumber(db.worldMarkerGroundRingScale) or 1.0
         ringScale = math.max(0.65, math.min(1.50, ringScale))
         local ringAlpha = tonumber(db.worldMarkerGroundRingAlpha) or 0.72
@@ -287,17 +239,6 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
         f.bg:Hide()
         f.highlight:Hide()
         f.stroke:Hide()
-    end
-    if precision then
-        f.highlight:Hide()
-        f.stroke:Hide()
-        f.icon:SetSize(22, 22)
-        if raidSymbol then
-            -- Keep the symbol's lower edge at the tip/anchor, rather than
-            -- inheriting the taller PingUI background's center offset.
-            f.icon:ClearAllPoints()
-            f.icon:SetPoint('BOTTOM', showStem and f.stem or f, showStem and 'TOP' or 'CENTER', 0, 0)
-        end
     end
 end
 
@@ -350,7 +291,7 @@ local function ParentMarkerToPlate(f, plate, yOffset)
     -- parented to Blizzard's nameplate and WoW maintains its screen position.
     f:SetParent(plate)
     f:ClearAllPoints()
-    f:SetPoint('CENTER', plate, 'TOP', 0, yOffset or 8)
+    f:SetPoint('BOTTOM', plate, 'TOP', 0, yOffset or 8)
     f:SetFrameStrata('TOOLTIP')
     f:SetFrameLevel(200)
     return true
@@ -360,7 +301,6 @@ local function ResetMarkerParent(f)
     if not f then return end
     if f.groundRing then f.groundRing:Hide() end
     if f.stem then f.stem:Hide() end
-    if f.beamGlow then f.beamGlow:Hide() end
     if f.bg then f.bg:Hide() end
     if f.highlight then f.highlight:Hide() end
     if f.stroke then f.stroke:Hide() end
@@ -427,35 +367,66 @@ local function ShouldSuppressNativeSuperTrack()
     return status and status.owned == true
 end
 
--- Hide only the stock artwork. The native parent keeps its own alpha,
--- OnUpdate and state table; our replacement is anchored independently.
-local nativeHidden = setmetatable({}, {__mode = 'k'})
-local nativeSuppressed = false
-local function RestoreNativeSuppression()
-    for region, alpha in pairs(nativeHidden) do
-        pcall(region.SetAlpha, region, alpha)
-        nativeHidden[region] = nil
+-- Cosmetic replacement only: never stop the native parent update or
+-- alter the navigation state's alpha table. Hidden regions keep their anchors.
+local stockVisuals = setmetatable({}, {__mode = 'k'})
+local function HideArtwork(region)
+    if not region or type(region.Hide) ~= 'function' or type(region.IsShown) ~= 'function' then return end
+    local record = stockVisuals[region]
+    if not record then
+        record = {restoreShown = region:IsShown(), muted = false}
+        stockVisuals[region] = record
+        if hooksecurefunc then
+            if type(region.Show) == 'function' then
+                hooksecurefunc(region, 'Show', function()
+                    if record.muted then record.restoreShown = true; region:Hide() end
+                end)
+            end
+            if type(region.SetShown) == 'function' then
+                hooksecurefunc(region, 'SetShown', function(_, visible)
+                    if record.muted then
+                        record.restoreShown = visible == true
+                        if visible then region:Hide() end
+                    end
+                end)
+            end
+        end
+    elseif not record.muted then
+        record.restoreShown = region:IsShown()
     end
-    nativeSuppressed = false
+    record.muted = true
+    region:Hide()
+end
+
+local function RestoreNativeSuppression()
+    for region, record in pairs(stockVisuals) do
+        if record.muted then
+            record.muted = false
+            if record.restoreShown then region:Show() else region:Hide() end
+        end
+    end
+end
+
+local function HideNativeArtwork(owner)
+    if not owner then return end
+    if type(owner.GetRegions) == 'function' then
+        for _, region in ipairs({owner:GetRegions()}) do HideArtwork(region) end
+    end
+    if type(owner.GetChildren) == 'function' then
+        for _, child in ipairs({owner:GetChildren()}) do HideArtwork(child) end
+    end
 end
 
 local function ApplyNativeSuppression()
+    if not ShouldSuppressNativeSuperTrack() then RestoreNativeSuppression(); return end
     local face = _G.SuperTrackedFrame
-    if not ShouldSuppressNativeSuperTrack() or not face then
-        if nativeSuppressed then RestoreNativeSuppression() end
-        return
+    if face then
+        for _, name in ipairs({'Icon', 'IconBorder', 'DistanceText', 'Arrow'}) do HideArtwork(face[name]) end
+        HideNativeArtwork(face)
     end
-    for _, name in ipairs({'Icon', 'IconBorder', 'DistanceText', 'Arrow'}) do
-        local region = face[name]
-        if region and type(region.SetAlpha) == 'function' then
-            if nativeHidden[region] == nil then
-                local ok, alpha = pcall(region.GetAlpha, region)
-                nativeHidden[region] = ok and type(alpha) == 'number' and alpha or 1
-            end
-            pcall(region.SetAlpha, region, 0)
-        end
-    end
-    nativeSuppressed = true
+    -- Only artwork underneath the engine host is suppressed, not the host
+    -- itself. Our replacement is an independent UIParent frame.
+    HideNativeArtwork(navFrame)
 end
 
 local function ObtainNavigationFrame()
@@ -468,8 +439,6 @@ end
 
 function Visual:GetWaypointAnchor(frame)
     if not frame then return nil end
-    -- Public Blizzard UI regions only. Follow the rendered waypoint icon's
-    -- position, not the NPC nameplate or our decorative beam/head center.
     local face = _G.SuperTrackedFrame
     return (face and face.Icon) or frame
 end
@@ -477,15 +446,15 @@ end
 local function EnsureWorldFrame(frame)
     if not frame then return nil end
     local anchor = Visual:GetWaypointAnchor(frame)
-    if not worldFrame then worldFrame = BuildMarkerFrame('RXPNavigatorWorldMarkerFrame', UIParent) end
-    if worldFrame.rxpNavigationAnchor ~= anchor then
-        worldFrame:SetParent(UIParent)
+    if not worldFrame then
+        worldFrame = BuildMarkerFrame('RXPNavigatorWorldMarkerFrame', UIParent)
+        worldFrame:SetSize(1, 1)
+    end
+    if worldFrame.rxpAnchor ~= anchor then
         worldFrame:ClearAllPoints()
         worldFrame:SetPoint('CENTER', anchor, 'CENTER', 0, 0)
-        worldFrame.rxpNavigationAnchor = anchor
+        worldFrame.rxpAnchor = anchor
     end
-    worldFrame:SetFrameStrata('HIGH')
-    worldFrame:SetFrameLevel(95)
     return worldFrame
 end
 
@@ -520,47 +489,35 @@ function Visual:Refresh()
     local scale = tonumber(db.worldMarkerScale) or 1.0
     scale = math.max(0.70, math.min(1.40, scale))
 
-    -- Exact visible NPCs remain safely anchored to their Blizzard nameplate.
-    -- The floor ring is deliberately disabled there because a nameplate is not
-    -- a reliable terrain-ground coordinate.
-    local precision = db.worldMarkerPrecision ~= false
-    local plate = not precision and FindExactNPCPlate(status) or nil
-    if plate then
-        if worldFrame then worldFrame:Hide() end
-        local f = EnsureNPCAutoFrame(plate)
-        f:SetScale(scale)
-        ApplyBlizzardStyle(f, kit, true, true, false)
-        f.distance:SetText(FormatDistance(distance))
-        f.distance:SetShown(db.showWorldMarkerDistance ~= false)
-        f:Show()
-        ApplyNativeSuppression()
-        return
-    end
+    -- One production anchor path only. Automatic nameplate snapping used to
+    -- switch the visual away from the actual native waypoint. The explicit
+    -- NPC test command remains available separately.
     ResetMarkerParent(npcAnchorFrame)
-
-    -- Blizzard navigation frame supplies the world-space screen position.
-    if not self:IsWorldPointVisible() then
+    local frame = ObtainNavigationFrame()
+    if not frame or (frame.IsShown and not frame:IsShown()) then
         if worldFrame then worldFrame:Hide() end
         return
     end
-    local frame = navFrame or ObtainNavigationFrame()
-    if not frame then
-        if worldFrame then worldFrame:Hide() end
-        return
+    if C_Navigation and C_Navigation.HasValidScreenPosition then
+        local ok, valid = pcall(C_Navigation.HasValidScreenPosition)
+        if not ok or not valid then
+            if worldFrame then worldFrame:Hide() end
+            return
+        end
+    end
+    if C_Navigation and C_Navigation.WasClampedToScreen then
+        local ok, clamped = pcall(C_Navigation.WasClampedToScreen)
+        if not ok or clamped then
+            if worldFrame then worldFrame:Hide() end
+            return
+        end
     end
 
     local f = EnsureWorldFrame(frame)
     f:SetScale(scale)
-    local clamped = false
-    if C_Navigation and type(C_Navigation.WasClampedToScreen) == 'function' then
-        local ok, value = pcall(C_Navigation.WasClampedToScreen)
-        clamped = ok and value == true
-    end
     local showStem = db.showWorldMarkerBeam ~= false
         and type(distance) == 'number'
         and distance <= beamRange
-        and distance >= 8
-        and not clamped
 
     ApplyBlizzardStyle(f, kit, showStem, false, true)
     f.distance:SetText(FormatDistance(distance))
@@ -597,9 +554,6 @@ events:SetScript('OnEvent', function(_, event, unit)
 end)
 
 events:SetScript('OnUpdate', function(_, dt)
-    -- Visibility is checked every rendered frame, independently of the
-    -- slower content/style refresh, to avoid one-frame off-screen flashes.
-    if not Visual:IsWorldPointVisible() and worldFrame then worldFrame:Hide() end
     elapsed = elapsed + (dt or 0)
     if elapsed < UPDATE_INTERVAL then return end
     elapsed = 0

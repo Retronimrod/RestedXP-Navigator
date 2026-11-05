@@ -265,9 +265,7 @@ local function BuildGeneralPage(panel)
     MakeCheckbox(panel, page, L("worldMarkerBeam"), 18, -116,
         function() return db.showWorldMarkerBeam ~= false end,
         function(v) db.showWorldMarkerBeam = v end)
-    MakeCheckbox(panel, page, (GetLocale and GetLocale() == "deDE") and "Präzisionsmodus für Weltmarker" or "Precision world-marker mode", 18, -226,
-        function() return db.worldMarkerPrecision ~= false end,
-        function(v) db.worldMarkerPrecision = v end)
+
     local de = GetLocale and GetLocale() == "deDE"
     MakeCheckbox(panel, page, de and "Raid-Symbol als lokalen Zielmarker nutzen" or "Use raid symbol for local target marker", 340, -116,
         function() return db.worldMarkerUseRaidSymbols == true end,

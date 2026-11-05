@@ -30,8 +30,6 @@ local elapsed = 0
 local missingSince
 local owned = false
 local lastOwnedKey
-local lastOwnedZ
-local nativeSelections = 0
 local blockedTargetKey
 local previousState
 local activeTarget
@@ -390,7 +388,7 @@ local function MakePoint(data)
     if UiMapPoint and type(UiMapPoint.CreateFromVector2D) == "function" and CreateVector2D then
         local okVector, vector = pcall(CreateVector2D, data.x, data.y)
         if okVector and vector then
-            local okPoint, point = pcall(UiMapPoint.CreateFromVector2D, data.mapID, vector, data.z)
+            local okPoint, point = pcall(UiMapPoint.CreateFromVector2D, data.mapID, vector)
             if okPoint and point then return point end
         end
     end
@@ -505,7 +503,6 @@ local function RestorePreviousState()
 
     owned = false
     lastOwnedKey = nil
-    lastOwnedZ = nil
     previousState = nil
     activeTarget = nil
     pendingTarget = nil
@@ -517,7 +514,6 @@ end
 local function RelinquishToExternalWaypoint(targetKey)
     owned = false
     lastOwnedKey = nil
-    lastOwnedZ = nil
     previousState = nil
     activeTarget = nil
     pendingTarget = nil
@@ -560,11 +556,6 @@ local function GetDesiredElement()
 end
 
 local function ResolveDesiredTarget()
-    local test = Navigator.GroundTest and Navigator.GroundTest:GetTarget()
-    if test then
-        return {element = test.element, mapID = test.mapID, x = test.x, y = test.y,
-            z = test.z, key = PointKey(test.mapID, test.x, test.y)}
-    end
     local element = GetDesiredElement()
     if not element then return nil end
 
@@ -630,7 +621,7 @@ local function SetDesiredTarget(target)
         return false
     end
 
-    if owned and lastOwnedKey == target.key and lastOwnedZ == target.z then
+    if owned and lastOwnedKey == target.key then
         if C_SuperTrack and type(C_SuperTrack.IsSuperTrackingUserWaypoint) == "function" then
             local ok, tracking = pcall(C_SuperTrack.IsSuperTrackingUserWaypoint)
             if ok and tracking == false then
@@ -638,8 +629,7 @@ local function SetDesiredTarget(target)
                 return false
             end
         end
-        -- Selecting the same tracked point again can restart native navigation
-        -- updates. Keep the existing engine anchor instead of reselecting it.
+        -- Keep the selected engine anchor alive without reselecting it.
         return true
     end
 
@@ -670,9 +660,7 @@ local function SetDesiredTarget(target)
     end
 
     owned = true
-    nativeSelections = nativeSelections + 1
     lastOwnedKey = target.key
-    lastOwnedZ = target.z
     return true
 end
 
@@ -704,7 +692,7 @@ function WorldMarker:RefreshNow()
     -- advances, keep the previous native marker alive briefly so the player can
     -- actually arrive at it. The Navigator header/HUD can already show the new
     -- destination during this handover.
-    if db.worldMarkerPrecision == false and owned and activeTarget and target.key ~= activeTarget.key then
+    if owned and activeTarget and target.key ~= activeTarget.key then
         pendingTarget = target
         if not arrivalHoldStartedAt then
             arrivalHoldStartedAt = now
@@ -736,21 +724,6 @@ function WorldMarker:RefreshNow()
 end
 
 -- Only share the point actually owned by navigation, never a user's replacement.
-function WorldMarker:PrintAnchorStatus()
-    local desired = ResolveDesiredTarget()
-    API:Print("Marker-Version: " .. tostring(API:GetVersion()))
-    API:Print("Wegpunkt aktiv=" .. tostring(lastOwnedKey) .. "; angefordert=" .. tostring(desired and desired.key)
-        .. "; Blizzard-Punkt=" .. tostring(GetCurrentWaypointKey()) .. "; Neuauswahlen=" .. nativeSelections)
-    local function Value(fn)
-        if type(fn) ~= "function" then return "nicht verfügbar" end
-        local ok, value = pcall(fn)
-        return ok and tostring(value) or "nicht lesbar"
-    end
-    API:Print("Tracking=" .. Value(C_SuperTrack and C_SuperTrack.IsSuperTrackingUserWaypoint)
-        .. "; Bildschirmposition gültig=" .. Value(C_Navigation and C_Navigation.HasValidScreenPosition)
-        .. "; am Bildschirmrand=" .. Value(C_Navigation and C_Navigation.WasClampedToScreen))
-end
-
 function WorldMarker:GetShareableWaypointLink()
     local db = API:GetDB()
     if not db or not db.enabled or not owned or not activeTarget then return nil end
