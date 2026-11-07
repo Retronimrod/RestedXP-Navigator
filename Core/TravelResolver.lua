@@ -17,7 +17,7 @@ local KIND_LABELS = {
 
 local function Localized(values)
     local locale = GetLocale and GetLocale() or "enUS"
-    return values and (values[locale] or values.enUS) or nil
+    return values and API:Localize(values.enUS) or nil
 end
 
 local function Clean(value)

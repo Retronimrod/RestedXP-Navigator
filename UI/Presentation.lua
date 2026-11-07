@@ -47,7 +47,7 @@ local labels = {
 local function L(key)
     local locale = GetLocale and GetLocale() or "enUS"
     local item = labels[key]
-    return item and (item[locale] or item.enUS) or key
+    return item and Navigator.API:Localize(item.enUS) or key
 end
 
 function P:GetColor(kind)

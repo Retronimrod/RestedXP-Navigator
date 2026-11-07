@@ -1,6 +1,10 @@
 local Navigator = _G.RXPNavigator
 if not Navigator or not Navigator.API then return end
 local API = Navigator.API
+local Skin = Navigator.UI
+local function MakeButton(parent)
+    return Skin and Skin:Button(parent,'',160,26) or CreateFrame("Button",nil,parent,"UIPanelButtonTemplate")
+end
 Navigator.Options = Navigator.Options or {}
 
 local db
@@ -42,7 +46,7 @@ local function TabText(key)
         corpse = "Corpse Run",
         advanced = "Advanced",
     }
-    return (locale == "deDE" and de[key]) or en[key] or key
+    return API:Localize(en[key] or key)
 end
 
 local function Register(panel, control)
@@ -53,11 +57,12 @@ local function Register(panel, control)
 end
 
 local function MakeCheckbox(panel, parent, label, x, y, getter, setter)
-    local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+    local cb = Skin and Skin:Checkbox(parent) or CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
     cb:SetPoint("TOPLEFT", x, y)
-    cb:SetSize(26, 26)
+    cb:SetSize(Skin and 310 or 26, 30)
     local text = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    text:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+    text:SetPoint("TOPLEFT", cb, "TOPLEFT", 30, -4)
+    text:SetWidth(280);text:SetWordWrap(true)
     text:SetText(label)
     cb.label = text
     cb:SetScript("OnClick", function(self)
@@ -73,7 +78,7 @@ local function MakeSlider(panel, parent, label, x, y, width, minVal, maxVal, ste
     title:SetPoint("TOPLEFT", x, y)
     title:SetText(label)
 
-    local slider = CreateFrame("Slider", nil, parent, "OptionsSliderTemplate")
+    local slider = Skin and Skin:Slider(parent) or CreateFrame("Slider", nil, parent, "OptionsSliderTemplate")
     slider:SetPoint("TOPLEFT", x, y - 24)
     slider:SetWidth(width)
     slider:SetMinMaxValues(minVal, maxVal)
@@ -216,7 +221,7 @@ local function MakeHUDColorButton(panel, parent, x, y)
     label:SetPoint("TOPLEFT", x, y)
     label:SetText(L("hudColor"))
 
-    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    local b = MakeButton(parent)
     b:SetSize(128, 25)
     b:SetPoint("TOPLEFT", x, y - 22)
     b:SetText("")
@@ -266,6 +271,33 @@ local function BuildGeneralPage(panel)
         function() return db.showWorldMarkerBeam ~= false end,
         function(v) db.showWorldMarkerBeam = v end)
 
+    local de = GetLocale and GetLocale() == "deDE"
+    MakeCheckbox(panel, page, API:Localize("Use personal raid symbol"), 340, -116,
+        function() return db.worldMarkerUseRaidSymbols == true end,
+        function(v) db.worldMarkerUseRaidSymbols = v end)
+    local symbol = MakeButton(page)
+    symbol:SetSize(240, 26)
+    symbol:SetPoint("TOPLEFT", 340, -154)
+    local names = {"Star", "Circle", "Diamond", "Triangle", "Moon", "Square", "Cross", "Skull"}
+    local function SymbolIndex()
+        return Navigator.WorldMarker:GetLocalRaidSymbolIndex({worldMarkerUseRaidSymbols = true, worldMarkerRaidSymbol = db.worldMarkerRaidSymbol})
+    end
+    symbol.Refresh = function(self)
+        local index = SymbolIndex()
+        self:SetText("|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_" .. index .. ":16|t " .. API:Localize(names[index]) .. " →")
+    end
+    symbol:SetScript("OnClick", function(self)
+        db.worldMarkerRaidSymbol = SymbolIndex() % 8 + 1
+        self:Refresh()
+        RefreshAll()
+    end)
+    Register(panel, symbol)
+    local note = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    note:SetPoint("TOPLEFT", 340, -188)
+    note:SetWidth(270)
+    note:SetJustifyH("LEFT")
+    note:SetText(API:Localize("Visible only to you. Not an actual raid world marker."))
+
     local themeLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     themeLabel:SetPoint("TOPLEFT", 18, -164)
     themeLabel:SetText(L("colorTheme"))
@@ -292,7 +324,7 @@ local function BuildGeneralPage(panel)
         }
     end
 
-    local reset = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    local reset = MakeButton(page)
     reset:SetSize(160, 26)
     reset:SetPoint("TOPLEFT", 18, -268)
     reset:SetText(L("reset"))
@@ -304,6 +336,20 @@ local function BuildGeneralPage(panel)
             ResetSettings()
         end
     end)
+    local layout=CreateFrame("Button",nil,page,"UIPanelButtonTemplate")
+    layout:SetSize(240,26);layout:SetPoint("TOPLEFT",340,-268);layout:SetText(API:Localize("Edit layout"))
+    layout:SetScript("OnClick",function() if Navigator.LayoutEditor then Navigator.LayoutEditor:Open() end end)
+    local setup=Skin and Skin:Button(page,"Setup wizard",144,26) or MakeButton(page)
+    setup:SetSize(144,26);setup:SetPoint("TOPLEFT",184,-268);setup:SetText(API:Localize("Setup wizard"))
+    setup:SetScript("OnClick",function() if Navigator.SetupWizard then Navigator.SetupWizard:Open() end end)
+    MakeSectionTitle(page, API:Localize("Group quest messages"), -320)
+    MakeCheckbox(panel, page, API:Localize("Announce quest progress"), 18, -356,
+        function() return db.questChatProgress == true end, function(v) db.questChatProgress=v end)
+    MakeCheckbox(panel, page, API:Localize("Announce completed objectives and quests"), 340, -356,
+        function() return db.questChatCompletion == true end, function(v) db.questChatCompletion=v end)
+    MakeCheckbox(panel, page, API:Localize("Include all quests in your quest log"), 18, -404,
+        function() return db.questChatAllQuests == true end, function(v) db.questChatAllQuests=v end)
+
 end
 
 local function BuildMinimapPage(panel)
@@ -338,7 +384,7 @@ local function BuildMinimapPage(panel)
     local styles = {{key="thin",text=L("thin")},{key="normal",text=L("normal")},{key="strong",text=L("strong")}}
     panel.styleButtons = {}
     for i, info in ipairs(styles) do
-        local b = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+        local b = MakeButton(page)
         b:SetSize(88,25)
         b:SetPoint("TOPLEFT", 18 + (i-1)*96, -160)
         b:SetText(info.text)
@@ -444,12 +490,13 @@ local function BuildHUDPage(panel)
 
     MakeHUDColorButton(panel, page, 340, -232)
 
-    local resetPos = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    local resetPos = MakeButton(page)
     resetPos:SetSize(190,25)
     resetPos:SetPoint("TOPLEFT", 18, -326)
     resetPos:SetText(L("hudResetPos"))
     resetPos:SetScript("OnClick", function()
         db.hudPoint="TOP"; db.hudRelativePoint="TOP"; db.hudX=0; db.hudY=-120
+        db.layoutHUDX=-1;db.layoutHUDY=-1;db.layoutHUDScale=1
         ApplyHUDPosition(); RefreshAll()
     end)
 end
@@ -526,13 +573,13 @@ local function BuildAdvancedPage(panel)
     MakeCheckbox(panel, page, L("transportHints"), 340, -226, function() return db.showTransportHints end, function(v) db.showTransportHints=v end)
     MakeCheckbox(panel, page, L("spiritHealer"), 18, -260, function() return db.showSpiritHealer end, function(v) db.showSpiritHealer=v end)
 
-    local maptest = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    local maptest = MakeButton(page)
     maptest:SetSize(180,25)
     maptest:SetPoint("TOPLEFT",18,-330)
     maptest:SetText(L("mapDiagnostics"))
     maptest:SetScript("OnClick", function() PrintMapDiagnostics(true); ShowInspectorExport() end)
 
-    local bug = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    local bug = MakeButton(page)
     bug:SetSize(180,25)
     bug:SetPoint("TOPLEFT",210,-330)
     bug:SetText(L("bugReport"))
@@ -557,7 +604,7 @@ local function BuildTabs(panel)
     local order = {"general","minimap","worldmap","hud","overlays","corpse","advanced"}
     local x = 14
     for _, key in ipairs(order) do
-        local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+        local b = MakeButton(panel)
         local width = (key == "worldmap" or key == "advanced") and 96 or 86
         b:SetSize(width, 27)
         b:SetPoint("TOPLEFT", x, -72)
@@ -650,7 +697,7 @@ local function OpenOptions()
         InterfaceOptionsFrame_OpenToCategory(p)
         InterfaceOptionsFrame_OpenToCategory(p)
     else
-        Print("Öffne die Blizzard-Optionen > AddOns > RestedXP-Navigator")
+        Print(API:Localize("Open Blizzard settings > AddOns > RestedXP-Navigator"))
     end
 end
 

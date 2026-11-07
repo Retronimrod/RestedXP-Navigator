@@ -5,6 +5,28 @@ local API = Navigator.API
 Navigator.WorldMarkerVisual = Navigator.WorldMarkerVisual or {}
 local Visual = Navigator.WorldMarkerVisual
 
+local STYLE_KITS={NonThreat=true,OnMyWay=true,Attack=true,Assist=true,Warning=true}
+local STYLE_OPTIONS={
+    {id='auto',label='Automatic by objective'}, {id='NonThreat',label='Diamond'},
+    {id='OnMyWay',label='Arrow'}, {id='Attack',label='Sword'},
+    {id='Assist',label='Interaction'}, {id='Warning',label='Warning'}, {id='raid',label='Raid symbols'},
+}
+function Visual:GetStyleOptions() return STYLE_OPTIONS end
+function Visual:GetStyle(db)
+    if db and db.worldMarkerUseRaidSymbols==true then return 'raid' end
+    return db and STYLE_KITS[db.worldMarkerStyle] and db.worldMarkerStyle or 'auto'
+end
+function Visual:SetStyle(db,id)
+    if not db or (id~='auto' and id~='raid' and not STYLE_KITS[id]) then return false end
+    db.worldMarkerUseRaidSymbols=id=='raid'
+    if id~='raid' then db.worldMarkerStyle=id end
+    return true
+end
+function Visual:GetStyleLabel(db)
+    local id=self:GetStyle(db)
+    for _,option in ipairs(STYLE_OPTIONS) do if option.id==id then return option.label end end
+end
+
 local UPDATE_INTERVAL = 0.08
 local DEFAULT_BEAM_SHOW_DISTANCE_YARDS = 65
 local NPC_TEST_DURATION_SECONDS = 120
@@ -81,7 +103,7 @@ end
 local function FormatDistance(distance)
     if type(distance) ~= 'number' then return '' end
     if distance >= 1000 then return string.format('%.1f km', distance / 1000) end
-    return string.format('%d yd', math.floor(distance + 0.5))
+    return string.format((_G.RXPNavigatorLocale and _G.RXPNavigatorLocale:Get('%d yd')) or '%d yd', math.floor(distance + 0.5))
 end
 
 local function BuildMarkerFrame(name, parent)
@@ -99,7 +121,7 @@ local function BuildMarkerFrame(name, parent)
     f.groundRing:SetPoint('CENTER', f, 'CENTER', 0, 0)
     f.groundRing:Hide()
 
-    -- Everything above the floor ring comes directly from Blizzard PingUI atlases.
+    -- Blizzard PingUI atlases, with optional local raid-target symbol artwork.
     f.stem = f:CreateTexture(nil, 'BACKGROUND', nil, 1)
     f.stem:SetPoint('BOTTOM', f, 'CENTER', 0, 0)
 
@@ -127,8 +149,10 @@ local function BuildMarkerFrame(name, parent)
     return f
 end
 
-local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
+local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing, settings)
     if not f then return end
+    local db = settings or API:GetDB()
+    if db and db.worldMarkerUseRaidSymbols~=true and STYLE_KITS[db.worldMarkerStyle] then kit=db.worldMarkerStyle end
     kit = kit or 'NonThreat'
 
     local iconAtlas = ('Ping_Marker_Icon_%s'):format(kit)
@@ -179,7 +203,6 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     f.icon:ClearAllPoints()
     f.icon:SetPoint('CENTER', f.bg, 'CENTER')
 
-    local db = API:GetDB()
     local color = GetConfiguredKitColor(kit, db)
 
     if db and db.worldMarkerCustomColors == true then
@@ -228,6 +251,37 @@ local function ApplyBlizzardStyle(f, kit, showStem, shortStem, showGroundRing)
     f.highlight:Show()
     f.stroke:Show()
     f.icon:Show()
+
+    local raidSymbol = Navigator.WorldMarker and Navigator.WorldMarker:GetLocalRaidSymbolIndex(db)
+    if raidSymbol then
+        f.icon:SetTexture('Interface\\TargetingFrame\\UI-RaidTargetingIcon_' .. raidSymbol)
+        f.icon:SetTexCoord(0, 1, 0, 1)
+        f.icon:SetSize(28, 28)
+        -- Raid symbols retain their recognizable colors, even with custom colors.
+        f.icon:SetVertexColor(1, 1, 1, 1)
+        f.bg:Hide()
+        f.highlight:Hide()
+        f.stroke:Hide()
+    end
+end
+
+-- An isolated preview uses exactly the production artwork, without acquiring
+-- navigation ownership or touching Blizzard's live frame.
+function Visual:CreatePreview(parent)
+    local f = BuildMarkerFrame(nil, parent)
+    if parent and parent.GetFrameStrata then f:SetFrameStrata(parent:GetFrameStrata()) end
+    if parent and parent.GetFrameLevel then f:SetFrameLevel(parent:GetFrameLevel()+5) end
+    f:SetPoint('CENTER', parent, 'CENTER', -25, -38)
+    return f
+end
+
+function Visual:RefreshPreview(f, kit, settings)
+    local db = settings or API:GetDB() or {}
+    ApplyBlizzardStyle(f, kit or 'OnMyWay', db.showWorldMarkerBeam ~= false, false, true, db)
+    f:SetScale(math.max(0.70, math.min(1.40, tonumber(db.worldMarkerScale) or 1)))
+    f.distance:SetText(FormatDistance(63))
+    f.distance:SetShown(db.showWorldMarkerDistance ~= false)
+    f:Show()
 end
 
 local function GetNamePlateForUnitSafe(unit)
@@ -301,25 +355,25 @@ end
 function Visual:StartNPCTest(unit)
     unit = unit or 'target'
     if not UnitExists or not UnitExists(unit) then
-        API:Print('NPC-Test: Kein NPC anvisiert.')
+        API:Print(API:Localize('NPC test: no NPC selected.'))
         return false
     end
     if UnitIsPlayer and UnitIsPlayer(unit) then
-        API:Print('NPC-Test: Bitte einen NPC und keinen Spieler auswählen.')
+        API:Print(API:Localize('NPC test: select an NPC, not a player.'))
         return false
     end
     npcTestGUID = UnitGUID and UnitGUID(unit) or nil
     npcTestName = UnitName and UnitName(unit) or 'NPC'
     npcTestUntil = (GetTime and GetTime() or 0) + NPC_TEST_DURATION_SECONDS
     if not npcTestGUID then return false end
-    API:Print('NPC-Test aktiv: ' .. tostring(npcTestName) .. '. Einstellungen werden nicht verändert.')
+    API:Print(string.format(API:Localize('NPC test active: %s. Settings are unchanged.'), tostring(npcTestName)))
     return true
 end
 
 function Visual:StopNPCTest()
     npcTestGUID, npcTestName, npcTestUntil = nil, nil, nil
     ResetMarkerParent(npcTestFrame)
-    API:Print('NPC-Test beendet.')
+    API:Print(API:Localize('NPC test ended.'))
 end
 
 function Visual:GetNPCTestStatus()
@@ -342,7 +396,7 @@ local function UpdateNPCTest()
     if not npcTestFrame then npcTestFrame = BuildMarkerFrame('RXPNavigatorNPCTestFrame', UIParent) end
     ParentMarkerToPlate(npcTestFrame, plate, 8)
     ApplyBlizzardStyle(npcTestFrame, 'Assist', true, true, false)
-    npcTestFrame.distance:SetText('NPC TEST: ' .. tostring(npcTestName or '?'))
+    npcTestFrame.distance:SetText(API:Localize('NPC TEST: ') .. tostring(npcTestName or '?'))
     npcTestFrame.distance:Show()
     npcTestFrame:Show()
 end
@@ -355,51 +409,66 @@ local function ShouldSuppressNativeSuperTrack()
     return status and status.owned == true
 end
 
-local NATIVE_NAV_ALPHA_DEFAULTS = { Invalid=0.0, Occluded=0.6, InRange=1.0, Disabled=0.0 }
-local nativeSuppressed = false
+-- Cosmetic replacement only: never stop the native parent update or
+-- alter the navigation state's alpha table. Hidden regions keep their anchors.
+local stockVisuals = setmetatable({}, {__mode = 'k'})
+local function HideArtwork(region)
+    if not region or type(region.Hide) ~= 'function' or type(region.IsShown) ~= 'function' then return end
+    local record = stockVisuals[region]
+    if not record then
+        record = {restoreShown = region:IsShown(), muted = false}
+        stockVisuals[region] = record
+        if hooksecurefunc then
+            if type(region.Show) == 'function' then
+                hooksecurefunc(region, 'Show', function()
+                    if record.muted then record.restoreShown = true; region:Hide() end
+                end)
+            end
+            if type(region.SetShown) == 'function' then
+                hooksecurefunc(region, 'SetShown', function(_, visible)
+                    if record.muted then
+                        record.restoreShown = visible == true
+                        if visible then region:Hide() end
+                    end
+                end)
+            end
+        end
+    elseif not record.muted then
+        record.restoreShown = region:IsShown()
+    end
+    record.muted = true
+    region:Hide()
+end
 
-local function SetNativeNavigationStateAlphas(frame, suppress)
-    if not frame or type(frame.SetTargetAlphaForState) ~= 'function' then return end
-    if not Enum or not Enum.NavigationState then return end
-    local values = suppress and {Invalid=0, Occluded=0, InRange=0, Disabled=0} or NATIVE_NAV_ALPHA_DEFAULTS
-    for name, alpha in pairs(values) do
-        local state = Enum.NavigationState[name]
-        if state ~= nil then pcall(frame.SetTargetAlphaForState, frame, state, alpha) end
+local function RestoreNativeSuppression()
+    for region, record in pairs(stockVisuals) do
+        if record.muted then
+            record.muted = false
+            if record.restoreShown then region:Show() else region:Hide() end
+        end
+    end
+end
+
+local function HideNativeArtwork(owner)
+    if not owner then return end
+    if type(owner.GetRegions) == 'function' then
+        for _, region in ipairs({owner:GetRegions()}) do HideArtwork(region) end
+    end
+    if type(owner.GetChildren) == 'function' then
+        for _, child in ipairs({owner:GetChildren()}) do HideArtwork(child) end
     end
 end
 
 local function ApplyNativeSuppression()
-    local frame = _G.SuperTrackedFrame
-    local suppress = ShouldSuppressNativeSuperTrack()
-    if frame then
-        SetNativeNavigationStateAlphas(frame, suppress)
-        if suppress then
-            pcall(frame.SetAlpha, frame, 0)
-            if frame.Icon then pcall(frame.Icon.SetAlpha, frame.Icon, 0) end
-            if frame.IconBorder then pcall(frame.IconBorder.SetAlpha, frame.IconBorder, 0) end
-            if frame.DistanceText then pcall(frame.DistanceText.SetAlpha, frame.DistanceText, 0) end
-            if frame.Arrow then pcall(frame.Arrow.SetAlpha, frame.Arrow, 0) end
-        elseif nativeSuppressed then
-            pcall(frame.SetAlpha, frame, 1)
-            if frame.Icon then pcall(frame.Icon.SetAlpha, frame.Icon, 1) end
-            if frame.IconBorder then pcall(frame.IconBorder.SetAlpha, frame.IconBorder, 1) end
-            if frame.DistanceText then pcall(frame.DistanceText.SetAlpha, frame.DistanceText, 1) end
-            if frame.Arrow then pcall(frame.Arrow.SetAlpha, frame.Arrow, 1) end
-        end
+    if not ShouldSuppressNativeSuperTrack() then RestoreNativeSuppression(); return end
+    local face = _G.SuperTrackedFrame
+    if face then
+        for _, name in ipairs({'Icon', 'IconBorder', 'DistanceText', 'Arrow'}) do HideArtwork(face[name]) end
+        HideNativeArtwork(face)
     end
-    nativeSuppressed = suppress
-end
-
-local function RestoreNativeSuppression()
-    local frame = _G.SuperTrackedFrame
-    if not frame then return end
-    SetNativeNavigationStateAlphas(frame, false)
-    pcall(frame.SetAlpha, frame, 1)
-    if frame.Icon then pcall(frame.Icon.SetAlpha, frame.Icon, 1) end
-    if frame.IconBorder then pcall(frame.IconBorder.SetAlpha, frame.IconBorder, 1) end
-    if frame.DistanceText then pcall(frame.DistanceText.SetAlpha, frame.DistanceText, 1) end
-    if frame.Arrow then pcall(frame.Arrow.SetAlpha, frame.Arrow, 1) end
-    nativeSuppressed = false
+    -- Only artwork underneath the engine host is suppressed, not the host
+    -- itself. Our replacement is an independent UIParent frame.
+    HideNativeArtwork(navFrame)
 end
 
 local function ObtainNavigationFrame()
@@ -410,14 +479,24 @@ local function ObtainNavigationFrame()
     return frame
 end
 
+function Visual:GetWaypointAnchor(frame)
+    if not frame then return nil end
+    local face = _G.SuperTrackedFrame
+    return (face and face.Icon) or frame
+end
+
 local function EnsureWorldFrame(frame)
     if not frame then return nil end
-    if not worldFrame then worldFrame = BuildMarkerFrame('RXPNavigatorWorldMarkerFrame', UIParent) end
-    worldFrame:SetParent(UIParent)
-    worldFrame:ClearAllPoints()
-    worldFrame:SetPoint('CENTER', frame, 'CENTER', 0, 0)
-    worldFrame:SetFrameStrata('HIGH')
-    worldFrame:SetFrameLevel(95)
+    local anchor = Visual:GetWaypointAnchor(frame)
+    if not worldFrame then
+        worldFrame = BuildMarkerFrame('RXPNavigatorWorldMarkerFrame', UIParent)
+        worldFrame:SetSize(1, 1)
+    end
+    if worldFrame.rxpAnchor ~= anchor then
+        worldFrame:ClearAllPoints()
+        worldFrame:SetPoint('CENTER', anchor, 'CENTER', 0, 0)
+        worldFrame.rxpAnchor = anchor
+    end
     return worldFrame
 end
 
@@ -452,28 +531,28 @@ function Visual:Refresh()
     local scale = tonumber(db.worldMarkerScale) or 1.0
     scale = math.max(0.70, math.min(1.40, scale))
 
-    -- Exact visible NPCs remain safely anchored to their Blizzard nameplate.
-    -- The floor ring is deliberately disabled there because a nameplate is not
-    -- a reliable terrain-ground coordinate.
-    local plate = FindExactNPCPlate(status)
-    if plate then
+    -- One production anchor path only. Automatic nameplate snapping used to
+    -- switch the visual away from the actual native waypoint. The explicit
+    -- NPC test command remains available separately.
+    ResetMarkerParent(npcAnchorFrame)
+    local frame = ObtainNavigationFrame()
+    if not frame or (frame.IsShown and not frame:IsShown()) then
         if worldFrame then worldFrame:Hide() end
-        local f = EnsureNPCAutoFrame(plate)
-        f:SetScale(scale)
-        ApplyBlizzardStyle(f, kit, true, true, false)
-        f.distance:SetText(FormatDistance(distance))
-        f.distance:SetShown(db.showWorldMarkerDistance ~= false)
-        f:Show()
-        ApplyNativeSuppression()
         return
     end
-    ResetMarkerParent(npcAnchorFrame)
-
-    -- Blizzard navigation frame supplies the world-space screen position.
-    local frame = navFrame or ObtainNavigationFrame()
-    if not frame then
-        if worldFrame then worldFrame:Hide() end
-        return
+    if C_Navigation and C_Navigation.HasValidScreenPosition then
+        local ok, valid = pcall(C_Navigation.HasValidScreenPosition)
+        if not ok or not valid then
+            if worldFrame then worldFrame:Hide() end
+            return
+        end
+    end
+    if C_Navigation and C_Navigation.WasClampedToScreen then
+        local ok, clamped = pcall(C_Navigation.WasClampedToScreen)
+        if not ok or clamped then
+            if worldFrame then worldFrame:Hide() end
+            return
+        end
     end
 
     local f = EnsureWorldFrame(frame)

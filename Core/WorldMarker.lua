@@ -5,6 +5,14 @@ local API = Navigator.API
 Navigator.WorldMarker = Navigator.WorldMarker or {}
 local WorldMarker = Navigator.WorldMarker
 
+-- These are local textures, not server-side raid markers or unit markings.
+function WorldMarker:GetLocalRaidSymbolIndex(db)
+    if not db or db.worldMarkerUseRaidSymbols ~= true then return nil end
+    local index = tonumber(db.worldMarkerRaidSymbol) or 3
+    if index ~= index or index < 1 or index > 8 then return 3 end
+    return math.floor(index)
+end
+
 local UPDATE_INTERVAL = 0.25
 local MISSING_GRACE = 1.0
 local CVAR = "showInGameNavigation"
@@ -223,6 +231,7 @@ local function CreateHeader()
 
     frame:Hide()
     headerFrame = frame
+    if Navigator.LayoutEditor then Navigator.LayoutEditor:Register('Header',frame) end
     return frame
 end
 
@@ -233,8 +242,15 @@ end
 local function TruncateTitle(text, maxChars)
     text = tostring(text or "")
     maxChars = maxChars or 42
-    if #text <= maxChars then return text end
-    return text:sub(1, math.max(1, maxChars - 3)) .. "..."
+    -- Count UTF-8 characters so CJK and Cyrillic titles never end mid-byte.
+    local count, boundary = 0, #text + 1
+    for position in text:gmatch('()[%z\1-\127\194-\244]') do
+        count = count + 1
+        if count == maxChars - 2 then boundary = position end
+    end
+    if count <= maxChars then return text end
+    return text:sub(1, boundary - 1) .. '...'
+
 end
 
 local function FormatHeaderETA(seconds)
@@ -247,7 +263,7 @@ local function FormatHeaderETA(seconds)
     if h > 0 then
         return string.format("about %d:%02d:%02d", h, m, sec)
     end
-    return string.format("about %d:%02d", m, sec)
+    return string.format(API:Localize("about %d:%02d"), m, sec)
 end
 
 
@@ -294,6 +310,7 @@ local function CalculateDynamicETA(targetKey, distance)
 end
 
 local function UpdateHeader(target)
+    if Navigator.LayoutEditor and Navigator.LayoutEditor:IsEditing() then HideHeader();return end
     local db = API:GetDB()
     if not db or db.showWorldMarkerHeader == false or not owned or not target or not target.element then
         HideHeader()
@@ -319,10 +336,16 @@ local function UpdateHeader(target)
 
     headerTitle:SetText(TruncateTitle(title, 42))
     if headerIcon then
-        local kit = ResolveHeaderPingKit(target, title, instruction)
-        local atlas = ("Ping_Marker_Icon_%s"):format(kit)
-        if not SetBlizzardPingAtlas(headerIcon, atlas) then
-            SetBlizzardPingAtlas(headerIcon, "Ping_Marker_Icon_NonThreat")
+        local raidSymbol = WorldMarker:GetLocalRaidSymbolIndex(db)
+        if raidSymbol then
+            headerIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. raidSymbol)
+            headerIcon:SetTexCoord(0, 1, 0, 1)
+        else
+            local kit = ResolveHeaderPingKit(target, title, instruction)
+            local atlas = ("Ping_Marker_Icon_%s"):format(kit)
+            if not SetBlizzardPingAtlas(headerIcon, atlas) then
+                SetBlizzardPingAtlas(headerIcon, "Ping_Marker_Icon_NonThreat")
+            end
         end
     end
 
@@ -330,14 +353,14 @@ local function UpdateHeader(target)
         if API.FormatHUDDistance then
             headerDistance:SetText(API:FormatHUDDistance(distance))
         else
-            headerDistance:SetText(string.format("%d yd", math.floor(distance + 0.5)))
+            headerDistance:SetText(string.format(API:Localize("%d yd"), math.floor(distance + 0.5)))
         end
 
         local dynamicETA = CalculateDynamicETA(target.key, distance)
         if dynamicETA then
             headerETA:SetText(FormatHeaderETA(dynamicETA))
         else
-            headerETA:SetText("measuring...")
+            headerETA:SetText(API:Localize("measuring..."))
         end
     else
         headerDistance:SetText("")
@@ -458,7 +481,7 @@ local function EnableNativeNavigationCVar()
     if tostring(value) == "1" then return true end
     if not nativeNavigationWarningShown and API and API.Print then
         nativeNavigationWarningShown = true
-        API:Print("World Marker: Blizzard In-Game Navigation is disabled. Enable it in the game settings to use in-world markers.")
+        API:Print(API:Localize("World Marker: Blizzard In-Game Navigation is disabled. Enable it in the game settings to use in-world markers."))
     end
     return false
 end
@@ -608,9 +631,14 @@ local function SetDesiredTarget(target)
     end
 
     if owned and lastOwnedKey == target.key then
-        if C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
-            pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
+        if C_SuperTrack and type(C_SuperTrack.IsSuperTrackingUserWaypoint) == "function" then
+            local ok, tracking = pcall(C_SuperTrack.IsSuperTrackingUserWaypoint)
+            if ok and tracking == false then
+                RelinquishToExternalWaypoint(target.key)
+                return false
+            end
         end
+        -- Keep the selected engine anchor alive without reselecting it.
         return true
     end
 
@@ -682,9 +710,6 @@ function WorldMarker:RefreshNow()
 
         local releaseOldMarker = ArrivalTargetReached() or ArrivalHoldExpired(now)
         if not releaseOldMarker then
-            if C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
-                pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
-            end
             UpdateHeader(target)
             return
         end
@@ -705,6 +730,16 @@ function WorldMarker:RefreshNow()
     else
         HideHeader()
     end
+end
+
+-- Only share the point actually owned by navigation, never a user's replacement.
+function WorldMarker:GetShareableWaypointLink()
+    local db = API:GetDB()
+    if not db or not db.enabled or not owned or not activeTarget then return nil end
+    if GetCurrentWaypointKey() ~= lastOwnedKey or lastOwnedKey ~= activeTarget.key then return nil end
+    if not (C_Map and type(C_Map.GetUserWaypointHyperlink) == "function") then return nil end
+    local ok, link = pcall(C_Map.GetUserWaypointHyperlink)
+    if ok and type(link) == "string" and link ~= "" then return link end
 end
 
 function WorldMarker:GetActiveResolvedTarget()

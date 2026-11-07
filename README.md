@@ -1,6 +1,6 @@
 # RestedXP-Navigator
 
-[![Version](https://img.shields.io/badge/version-1.6.11-blue)](https://github.com/Retronimrod/RestedXP-Navigator/releases)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue)](https://github.com/Retronimrod/RestedXP-Navigator/releases)
 [![WoW Forever](https://img.shields.io/badge/WoW%20Forever-1.60.1-orange)](https://www.curseforge.com/wow/addons/restedxp-navigator)
 [![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-lightgrey)](LICENSE)
 
@@ -32,7 +32,16 @@
 - Farm, patrol and search-area overlays
 - Integrated diagnostics and bug-report export
 
-## What's new in 1.4.0
+## What's new in 1.7.0
+
+- World Map routes, outlines, target rings and direction indicators adjust to map zoom.
+- Added a first-run setup wizard with shared and character-specific profiles.
+- HUD elements can be moved and scaled in Edit Mode.
+- Added optional quest progress and completion announcements in group chat.
+- Localized the interface for all supported client languages.
+- Added selectable built-in world marker styles and personal raid symbols.
+
+## Highlights from 1.4.0
 
 ### Quest-object markers
 RestedXP object-location loops can now be shown as individual markers on the World Map and Minimap instead of misleading connected route lines. Object classification, tooltips and nearest-object highlighting are included.

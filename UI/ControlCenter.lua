@@ -1,6 +1,8 @@
 local Navigator = _G.RXPNavigator
 if not Navigator or not Navigator.API then return end
 local API = Navigator.API
+local Skin = Navigator.UI
+local function T(text) return API:Localize(text) end
 Navigator.ControlCenter = Navigator.ControlCenter or {}
 local CC = Navigator.ControlCenter
 
@@ -12,8 +14,8 @@ local activePage = 'general'
 local db
 
 local ACCENT = {0.12, 0.72, 1.00}
-local PANEL = {0.050, 0.060, 0.078, 0.985}
-local CARD = {0.080, 0.090, 0.115, 0.97}
+local PANEL = {0.035, 0.043, 0.057, 0.99}
+local CARD = {0.065, 0.079, 0.101, 0.98}
 local MUTED = {0.58, 0.63, 0.70}
 
 local CURSEFORGE_PROFILE_URL = 'https://www.curseforge.com/members/nimri82/projects'
@@ -21,7 +23,7 @@ local CURSEFORGE_PROFILE_URL = 'https://www.curseforge.com/members/nimri82/proje
 local function EnsureExternalLinkPopup()
     if not StaticPopupDialogs or StaticPopupDialogs['RXPNAV_EXTERNAL_LINK'] then return end
     StaticPopupDialogs['RXPNAV_EXTERNAL_LINK'] = {
-        text = 'Open this link in your web browser:\n\n%s',
+        text = T('Open this link in your web browser:\n\n%s'),
         button1 = CLOSE or 'Close',
         timeout = 0,
         whileDead = true,
@@ -76,6 +78,7 @@ local function SyncDB() db = API:GetDB(); return db end
 local function RefreshAll()
     if API.SaveActiveProfile then API:SaveActiveProfile() end
     API:RefreshAll()
+    CC:Refresh()
 end
 
 local function Version()
@@ -86,7 +89,7 @@ local function Text(parent, font, text, x, y, width)
     local fs = parent:CreateFontString(nil, 'OVERLAY', font or 'GameFontHighlight')
     fs:SetPoint('TOPLEFT', x, y)
     if width then fs:SetWidth(width); fs:SetJustifyH('LEFT'); fs:SetWordWrap(true) end
-    fs:SetText(text or '')
+    fs:SetText(T(text or ''))
     return fs
 end
 
@@ -117,19 +120,19 @@ local function AddRefresh(control,fn)
 end
 
 local function Toggle(parent,label,x,y,getter,setter,description)
-    local b=CreateFrame('CheckButton',nil,parent,'UICheckButtonTemplate'); b:SetPoint('TOPLEFT',x,y); b:SetSize(24,24)
-    Text(parent,'GameFontHighlight',label,x+30,y-3,275)
+    local b=Skin and Skin:Checkbox(parent) or CreateFrame('CheckButton',nil,parent,'UICheckButtonTemplate'); b:SetPoint('TOPLEFT',x,y); if not Skin then b:SetSize(24,24) end
+    local labelText=Text(parent,'GameFontHighlight',label,x+30,y-3,275)
     if description then
-        local d=Text(parent,'GameFontDisableSmall',description,x+30,y-21,280); d:SetTextColor(unpack(MUTED))
+        local d=Text(parent,'GameFontDisableSmall',description,x+30,y-math.max(21,labelText:GetStringHeight()+8),280); d:SetTextColor(unpack(MUTED))
     end
     b:SetScript('OnClick',function(self) setter(self:GetChecked() and true or false); RefreshAll() end)
     return AddRefresh(b,function(self) self:SetChecked(getter() and true or false) end)
 end
 
 local function Slider(parent,label,x,y,w,minv,maxv,step,getter,setter,formatter)
-    Text(parent,'GameFontNormal',label,x,y,w)
+    Text(parent,'GameFontNormal',label,x,y,w-80)
     local value=Text(parent,'GameFontHighlightSmall','',x+w-75,y,75); value:SetJustifyH('RIGHT')
-    local s=CreateFrame('Slider',nil,parent,'OptionsSliderTemplate'); s:SetPoint('TOPLEFT',x,y-28); s:SetWidth(w)
+    local s=Skin and Skin:Slider(parent) or CreateFrame('Slider',nil,parent,'OptionsSliderTemplate'); s:SetPoint('TOPLEFT',x,y-28); s:SetWidth(w)
     s:SetMinMaxValues(minv,maxv); s:SetValueStep(step); if s.SetObeyStepOnDrag then s:SetObeyStepOnDrag(true) end
     if s.Low then s.Low:SetText('') end; if s.High then s.High:SetText('') end; if s.Text then s.Text:SetText('') end
     local busy=false
@@ -143,12 +146,15 @@ local function Slider(parent,label,x,y,w,minv,maxv,step,getter,setter,formatter)
 end
 
 local function Button(parent,label,x,y,w,onclick)
-    local b=CreateFrame('Button',nil,parent,'UIPanelButtonTemplate'); b:SetPoint('TOPLEFT',x,y); b:SetSize(w or 150,27); b:SetText(label)
+    local b=Skin and Skin:Button(parent,label,w or 150,29) or CreateFrame('Button',nil,parent,'UIPanelButtonTemplate'); b:SetPoint('TOPLEFT',x,y); b:SetSize(w or 150,29); b:SetText(T(label))
+    local labelText=b:GetFontString()
+    if labelText then labelText:SetScale(math.min(1, ((w or 150)-12)/math.max(1,labelText:GetStringWidth()))) end
     b:SetScript('OnClick',onclick); return b
 end
 
 local function EditBox(parent,x,y,w,placeholder)
-    local e=CreateFrame('EditBox',nil,parent,'InputBoxTemplate'); e:SetPoint('TOPLEFT',x,y); e:SetSize(w,26); e:SetAutoFocus(false)
+    local e=CreateFrame('EditBox',nil,parent,Skin and 'BackdropTemplate' or 'InputBoxTemplate');
+    if Skin then Skin:Panel(e);e:SetFontObject('GameFontHighlight');e:SetTextInsets(8,8,0,0) end; e:SetPoint('TOPLEFT',x,y); e:SetSize(w,26); e:SetAutoFocus(false)
     e:SetMaxLetters(32)
     if placeholder then e:SetText(''); e.placeholder=placeholder end
     return e
@@ -173,19 +179,23 @@ end
 
 local function Dropdown(parent,x,y,w,getItems,getter,setter)
     local d=CreateFrame('Frame',nil,parent,'UIDropDownMenuTemplate'); d:SetPoint('TOPLEFT',x-16,y); UIDropDownMenu_SetWidth(d,w)
+    if Skin then
+        for _,part in ipairs({'Left','Middle','Right'}) do if d[part] then d[part]:Hide() end end
+        Skin:Panel(d)
+    end
     UIDropDownMenu_Initialize(d,function(self,level)
         local current=getter()
         for _,item in ipairs(getItems()) do
             local info=UIDropDownMenu_CreateInfo()
             info.text=item; info.value=item; info.checked=(item==current)
             info.func=function()
-                setter(item); UIDropDownMenu_SetSelectedValue(d,item); UIDropDownMenu_SetText(d,item); RefreshAll()
+                setter(item); UIDropDownMenu_SetSelectedValue(d,item); UIDropDownMenu_SetText(d,item=='Default' and T('Default') or item); RefreshAll()
             end
             UIDropDownMenu_AddButton(info,level)
         end
     end)
     return AddRefresh(d,function(self)
-        local v=getter(); UIDropDownMenu_SetSelectedValue(self,v); UIDropDownMenu_SetText(self,v or '')
+        local v=getter(); UIDropDownMenu_SetSelectedValue(self,v); UIDropDownMenu_SetText(self,v=='Default' and T('Default') or v or '')
     end)
 end
 
@@ -196,50 +206,14 @@ local function NewPage(key,title,subtitle)
     return p
 end
 
-local previewKit='OnMyWay'
 local function WorldMarkerPreview(parent)
-    local preview=CreateFrame('Frame',nil,parent); preview:SetPoint('TOPLEFT',16,-62); preview:SetSize(300,155)
+    local preview=CreateFrame('Frame',nil,parent)
+    preview:SetPoint('TOPLEFT',16,-62); preview:SetSize(300,155)
     Backdrop(preview,.035,.045,.06,.96,{.12,.15,.20,1})
     Text(preview,'GameFontDisableSmall','LIVE PREVIEW',12,-10,120):SetTextColor(unpack(MUTED))
-
-    local marker=CreateFrame('Frame',nil,preview); marker:SetSize(110,125); marker:SetPoint('CENTER',preview,'CENTER',0,-5)
-    local ring=marker:CreateTexture(nil,'BACKGROUND'); ring:SetTexture('Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_GroundRing.tga'); ring:SetBlendMode('ADD'); ring:SetPoint('BOTTOM',marker,'BOTTOM',0,12)
-    local stem=marker:CreateTexture(nil,'ARTWORK'); stem:SetPoint('BOTTOM',ring,'CENTER',0,0)
-    local bg=marker:CreateTexture(nil,'ARTWORK'); bg:SetPoint('BOTTOM',stem,'TOP',0,-7)
-    local stroke=marker:CreateTexture(nil,'ARTWORK'); stroke:SetPoint('CENTER',bg)
-    local icon=marker:CreateTexture(nil,'OVERLAY'); icon:SetPoint('CENTER',bg)
-    local dist=marker:CreateFontString(nil,'OVERLAY','GameFontNormal'); dist:SetPoint('LEFT',bg,'RIGHT',5,0); dist:SetText('63 yd')
-
-    preview.Refresh=function()
-        local kit=previewKit
-        pcall(stem.SetAtlas,stem,'Ping_GroundMarker_Pin_'..kit,false); stem:SetSize(12,58)
-        pcall(bg.SetAtlas,bg,'Ping_GroundMarker_BG_'..kit,false); bg:SetSize(42,42)
-        pcall(stroke.SetAtlas,stroke,'Ping_GroundMarker_Stroke_'..kit,false); stroke:SetSize(42,42); stroke:SetAlpha(.35)
-        pcall(icon.SetAtlas,icon,'Ping_Marker_Icon_'..kit,false); icon:SetSize(24,24)
-
-        local colors={
-            Assist={db.markerAssistR or .23,db.markerAssistG or .95,db.markerAssistB or .34},
-            OnMyWay={db.markerTravelR or .18,db.markerTravelG or .72,db.markerTravelB or 1},
-            Attack={db.markerAttackR or 1,db.markerAttackG or .62,db.markerAttackB or .10},
-            NonThreat={db.markerDefaultR or .22,db.markerDefaultG or .68,db.markerDefaultB or 1},
-        }
-        local c=colors[kit] or colors.NonThreat
-        if db.worldMarkerCustomColors then
-            bg:SetVertexColor(unpack(c)); stroke:SetVertexColor(unpack(c)); icon:SetVertexColor(unpack(c)); stem:SetVertexColor(unpack(c))
-        else
-            bg:SetVertexColor(1,1,1); stroke:SetVertexColor(1,1,1); icon:SetVertexColor(1,1,1); stem:SetVertexColor(1,1,1)
-        end
-        dist:SetTextColor(unpack(c))
-        stem:SetShown(db.showWorldMarkerBeam ~= false)
-        dist:SetShown(db.showWorldMarkerDistance ~= false)
-        ring:SetShown(db.showWorldMarkerGroundRing ~= false)
-        ring:SetSize(48*(db.worldMarkerGroundRingScale or 1),17*(db.worldMarkerGroundRingScale or 1))
-        ring:SetAlpha(db.worldMarkerGroundRingAlpha or .72)
-        local rr,rg,rb=unpack(c)
-        if db.worldMarkerGroundRingUseMarkerColor == false then rr,rg,rb=db.worldMarkerGroundRingR or rr,db.worldMarkerGroundRingG or rg,db.worldMarkerGroundRingB or rb end
-        ring:SetVertexColor(rr,rg,rb,1)
-        marker:SetScale(db.worldMarkerScale or 1)
-    end
+    local visual=Navigator.WorldMarkerVisual
+    local marker=visual:CreatePreview(preview)
+    preview.Refresh=function() visual:RefreshPreview(marker, 'OnMyWay') end
     refreshers[#refreshers+1]=preview
     return preview
 end
@@ -249,35 +223,41 @@ local function BuildPages()
 
     p=NewPage('general','General','Core behavior and RestedXP integration.')
     c=Card(p,'Navigator','Master switches for the navigation layer.',4,-70,700,145)
-    Toggle(c,'Enable RestedXP-Navigator',16,-58,function() return db.enabled end,function(v) db.enabled=v end,'Turns the complete navigation layer on or off.')
+    Toggle(c,'Enable RestedXP-Navigator',16,-58,function() return db.enabled end,function(v) db.enabled=v end)
     Toggle(c,'Keep navigation while dead',360,-58,function() return db.keepGhostNavigation end,function(v) db.keepGhostNavigation=v end,'Keeps corpse-run guidance available as a ghost.')
     c2=Card(p,'Upcoming goals','Choose how much upcoming RestedXP context is displayed.',4,-230,700,150)
     Slider(c2,'Future steps',16,-58,300,0,6,1,function() return db.futureGoals or 3 end,function(v) db.futureGoals=v; db.showMinimapFutureGoals=v>0 end,function(v) return '+'..v end)
     Toggle(c2,'Show minimap button',360,-58,function() return db.showMinimapButton ~= false end,function(v) db.showMinimapButton=v end)
     Toggle(c2,'Animate routes',360,-98,function() return db.animation ~= false end,function(v) db.animation=v end)
 
+    c=Card(p,'Group quest messages','Only sent to your group. Solo play stays silent.',4,-400,700,190)
+    Toggle(c,'Announce quest progress',16,-64,function() return db.questChatProgress == true end,function(v) db.questChatProgress=v end)
+    Toggle(c,'Announce completed objectives and quests',360,-64,function() return db.questChatCompletion == true end,function(v) db.questChatCompletion=v end)
+    Toggle(c,'Include all quests in your quest log',16,-114,function() return db.questChatAllQuests == true end,function(v) db.questChatAllQuests=v end)
+    Text(c,'GameFontDisableSmall','By default, only quests from your current RestedXP step are announced.',16,-162,660):SetTextColor(unpack(MUTED))
+
     p=NewPage('profiles','Profiles','Use one setup across all characters or maintain your own named presets.')
-    c=Card(p,'Active profile','Profiles store your Navigator appearance and behavior settings.',4,-70,700,190)
+    c=Card(p,'Active profile','Profiles store your Navigator appearance and behavior settings.',4,-70,700,240)
     Toggle(c,'Use one profile for all characters',16,-58,function() return db.profileUseGlobal ~= false end,function(v) API:SetGlobalProfileMode(v); SyncDB() end,
         'On: every character uses the same selected profile. Off: each character can select its own profile.')
-    Text(c,'GameFontNormal','Selected profile',16,-108,160)
-    Dropdown(c,170,-113,230,function() return API:GetProfileNames() end,function() return API:GetActiveProfileName() end,function(name) API:ApplyProfile(name); SyncDB() end)
-    local char=Text(c,'GameFontHighlightSmall','Character: '..(API:GetCharacterProfileKey() or '?'),420,-112,250); char:SetTextColor(unpack(MUTED))
+    Text(c,'GameFontNormal','Selected profile',16,-158,160)
+    Dropdown(c,170,-163,230,function() return API:GetProfileNames() end,function() return API:GetActiveProfileName() end,function(name) API:ApplyProfile(name); SyncDB() end)
+    local char=Text(c,'GameFontHighlightSmall',T('Character: ')..(API:GetCharacterProfileKey() or '?'),420,-162,250); char:SetTextColor(unpack(MUTED))
 
-    c2=Card(p,'Profile management','Create snapshots, overwrite the active profile, or remove profiles you no longer need.',4,-275,700,210)
+    c2=Card(p,'Profile management','Create snapshots, overwrite the active profile, or remove profiles you no longer need.',4,-325,700,210)
     Text(c2,'GameFontNormal','New profile name',16,-62,150)
     local profileName=EditBox(c2,170,-57,225,'Profile name')
     Button(c2,'Create from current',410,-56,170,function()
         local name=profileName:GetText()
         local ok,msg=API:SaveProfile(name)
-        if ok then profileName:SetText(''); SyncDB(); CC:Refresh() else API:Print(msg or 'Could not create profile.') end
+        if ok then profileName:SetText(''); SyncDB(); CC:Refresh() else API:Print(T(msg or 'Could not create profile.')) end
     end)
     Button(c2,'Save current profile',16,-115,185,function()
-        API:SaveActiveProfile(); API:Print('Profile saved: '..tostring(API:GetActiveProfileName()))
+        API:SaveActiveProfile(); API:Print(T('Profile saved: ')..tostring(API:GetActiveProfileName()))
     end)
     Button(c2,'Delete selected profile',215,-115,185,function()
         local ok,msg=API:DeleteProfile(API:GetActiveProfileName())
-        if not ok then API:Print(msg or 'Profile could not be deleted.') end
+        if not ok then API:Print(T(msg or 'Profile could not be deleted.')) end
         SyncDB(); CC:Refresh(); RefreshAll()
     end)
     Text(c2,'GameFontDisableSmall','Tip: create profiles such as “Leveling”, “Minimal HUD”, “Large UI” or “Streamer”. Switching a profile immediately applies the stored settings.',16,-163,650):SetTextColor(unpack(MUTED))
@@ -294,20 +274,40 @@ local function BuildPages()
     ColorButton(c2,'HUD arrow color',16,-60,function() return db.hudColorR or .08,db.hudColorG or .74,db.hudColorB or 1 end,function(r,g,b) db.hudColorR=r;db.hudColorG=g;db.hudColorB=b end)
 
     p=NewPage('worldmarker','World Marker','Blizzard PingUI markers with an optional RestedXP-Navigator floor ring.')
-    c=Card(p,'Preview','Preview is isolated from the settings controls and uses fixed dimensions.',4,-70,700,235)
+    c=Card(p,'Preview','Uses the same artwork and settings as your personal world marker.',4,-70,700,235)
     WorldMarkerPreview(c)
     Toggle(c,'Enable world marker',335,-60,function() return db.showWorldMarkerNative == true end,function(v) db.showWorldMarkerNative=v end)
     Toggle(c,'Show distance',335,-100,function() return db.showWorldMarkerDistance ~= false end,function(v) db.showWorldMarkerDistance=v end)
     Toggle(c,'Show close-range beam',335,-140,function() return db.showWorldMarkerBeam ~= false end,function(v) db.showWorldMarkerBeam=v end)
     Toggle(c,'Hide duplicate Blizzard marker',335,-180,function() return db.worldMarkerHideBlizzard ~= false end,function(v) db.worldMarkerHideBlizzard=v end)
 
-    c2=Card(p,'Marker behavior','Size, beam distance, NPC attachment and floor contact.',4,-320,700,240)
-    Slider(c2,'Marker scale',16,-58,300,.60,1.60,.05,function() return db.worldMarkerScale or 1 end,function(v) db.worldMarkerScale=v end,function(v) return string.format('%d%%',v*100) end)
-    Slider(c2,'Beam activation range',360,-58,300,20,150,5,function() return db.worldMarkerBeamDistance or 65 end,function(v) db.worldMarkerBeamDistance=v end,function(v) return v..' yd' end)
-    Toggle(c2,'Automatic NPC anchoring',16,-125,function() return db.worldMarkerNPCAutoAnchor ~= false end,function(v) db.worldMarkerNPCAutoAnchor=v end)
-    Slider(c2,'NPC anchor range',360,-125,300,20,150,5,function() return db.worldMarkerNPCMaxDistance or 75 end,function(v) db.worldMarkerNPCMaxDistance=v end,function(v) return v..' yd' end)
+    c2=Card(p,'Marker behavior','Size, beam distance and personal marker appearance.',4,-320,700,260)
+    Slider(c2,'Marker scale',16,-58,300,.70,1.40,.05,function() return db.worldMarkerScale or 1 end,function(v) db.worldMarkerScale=v end,function(v) return string.format('%d%%',v*100) end)
+    Slider(c2,'Beam activation range',360,-58,300,20,150,5,function() return db.worldMarkerBeamDistance or 65 end,function(v) db.worldMarkerBeamDistance=v end,function(v) return string.format(T('%d yd'),v) end)
+    Text(c2,'GameFontNormal','Marker appearance',16,-116,300)
+    Dropdown(c2,16,-137,270,function()
+        local items={};for _,option in ipairs(Navigator.WorldMarkerVisual:GetStyleOptions()) do items[#items+1]=T(option.label) end;return items
+    end,function() return T(Navigator.WorldMarkerVisual:GetStyleLabel(db)) end,function(label)
+        for _,option in ipairs(Navigator.WorldMarkerVisual:GetStyleOptions()) do
+            if T(option.label)==label then Navigator.WorldMarkerVisual:SetStyle(db,option.id);break end
+        end
+    end)
+    Text(c2,'GameFontNormal','Raid symbol (visible only to you)',360,-116,300)
+    for index=1,8 do
+        local symbol=index
+        local button=CreateFrame('Button',nil,c2)
+        button:SetSize(30,30); button:SetPoint('TOPLEFT',360+(index-1)*38,-140)
+        local icon=button:CreateTexture(nil,'ARTWORK'); icon:SetAllPoints()
+        icon:SetTexture('Interface\\TargetingFrame\\UI-RaidTargetingIcon_'..symbol)
+        button:SetScript('OnClick',function() db.worldMarkerRaidSymbol=symbol;db.worldMarkerUseRaidSymbols=true;RefreshAll() end)
+        AddRefresh(button,function(self)
+            self:SetAlpha((tonumber(db.worldMarkerRaidSymbol) or 3)==symbol and 1 or .40)
+        end)
+    end
     Toggle(c2,'Ground ring',16,-190,function() return db.showWorldMarkerGroundRing ~= false end,function(v) db.showWorldMarkerGroundRing=v end)
-    Slider(c2,'Ground ring size',360,-190,300,.50,1.75,.05,function() return db.worldMarkerGroundRingScale or 1 end,function(v) db.worldMarkerGroundRingScale=v end,function(v) return string.format('%d%%',v*100) end)
+    Slider(c2,'Ground ring size',360,-190,300,.65,1.50,.05,function() return db.worldMarkerGroundRingScale or 1 end,function(v) db.worldMarkerGroundRingScale=v end,function(v) return string.format('%d%%',v*100) end)
+
+    Toggle(c2,'Show target header',16,-222,function() return db.showWorldMarkerHeader ~= false end,function(v) db.showWorldMarkerHeader=v end)
 
     p=NewPage('appearance','Appearance','Fine-tune marker colors and floor-ring presentation.')
     c=Card(p,'Marker colors','By default the original Blizzard PingUI colors are used. Enable custom tinting only if you want your own palette.',4,-70,700,260)
@@ -320,8 +320,8 @@ local function BuildPages()
     c2=Card(p,'Ground ring','The floor ring is the only custom artwork used by the world marker.',4,-345,700,205)
     Toggle(c2,'Match marker color',16,-58,function() return db.worldMarkerGroundRingUseMarkerColor ~= false end,function(v) db.worldMarkerGroundRingUseMarkerColor=v end)
     ColorButton(c2,'Custom ring color',360,-58,function() return db.worldMarkerGroundRingR,db.worldMarkerGroundRingG,db.worldMarkerGroundRingB end,function(r,g,b) db.worldMarkerGroundRingR=r;db.worldMarkerGroundRingG=g;db.worldMarkerGroundRingB=b end)
-    Slider(c2,'Ring opacity',16,-125,300,.10,1,.05,function() return db.worldMarkerGroundRingAlpha or .72 end,function(v) db.worldMarkerGroundRingAlpha=v end,function(v) return string.format('%d%%',v*100) end)
-    Slider(c2,'Ring size',360,-125,300,.50,1.75,.05,function() return db.worldMarkerGroundRingScale or 1 end,function(v) db.worldMarkerGroundRingScale=v end,function(v) return string.format('%d%%',v*100) end)
+    Slider(c2,'Ring opacity',16,-125,300,.15,1,.05,function() return db.worldMarkerGroundRingAlpha or .72 end,function(v) db.worldMarkerGroundRingAlpha=v end,function(v) return string.format('%d%%',v*100) end)
+    Slider(c2,'Ring size',360,-125,300,.65,1.50,.05,function() return db.worldMarkerGroundRingScale or 1 end,function(v) db.worldMarkerGroundRingScale=v end,function(v) return string.format('%d%%',v*100) end)
 
     p=NewPage('maps','Maps','Minimap and world-map route presentation.')
     c=Card(p,'Minimap','Current route and upcoming targets.',4,-70,700,205)
@@ -377,28 +377,9 @@ local function BuildPages()
     scroll:SetScrollChild(scrollChild)
 
     local whats=Text(scrollChild,'GameFontHighlight',
-[[v1.6.11
-• What's New is now scrollable and stays inside the Info panel.
-• CurseForge button renamed to “Open CurseForge”.
-• Uses a client-provided URL opener when one is available; otherwise shows a safe copyable-link fallback.
-
-v1.6.10
-• Info page now shows “Fabian aka Nimri” as creator.
-• Added the CurseForge profile link for nimri82.
-
-v1.6.9
-• Redesigned Control Center with a fixed World Marker preview.
-• New profile system: one profile for all characters or per-character selection.
-• Create, save and delete custom profiles.
-• Expanded marker customization: scale, beam range, NPC range, ring size and opacity.
-• Optional custom colors for interaction, travel, combat and default markers.
-• Separate custom floor-ring color.
-• Added this Info / What's New page.
-
-v1.6.8
-• Returned to Blizzard-native PingUI marker assets.
-• Green Assist markers for interactions, blue travel arrow, orange combat sword and blue default diamond.
-• Kept the RestedXP-Navigator ground ring for visual floor contact.]],0,0,610)
+('v1.7.0\n• '..T('Map artwork now adapts to zoom.')..'\n\nv1.7.0-beta.16\n• '..T('Setup profiles and additional marker styles.')..'\n\nv1.7.0-beta.15\n• '..T('New setup wizard and unified menus.')..'\n\nv1.7.0-beta.14\n• '..T('Move and scale your HUD in edit mode.')..'\n\nv1.7.0-beta.13\n• '..T('Quest progress and completion can be announced to your group.')..'\n\nv1.7.0-beta.12\n• '..T('Client language is selected automatically.')..'\n• '..T('Settings, tooltips and dialogs are now translated.')..
+        '\n\nv1.7.0-beta.11\n• '..T('Fixed hearthstone binding and marker settings.')..
+        '\n\nv1.7.0-beta.10\n• '..T('Restored the beta.2 baseline with native-icon attachment.')),0,0,610)
     whats:SetJustifyH('LEFT')
     whats:SetJustifyV('TOP')
 
@@ -420,8 +401,9 @@ local function SelectPage(key)
 end
 
 local function SidebarButton(parent,key,label,index)
-    local b=CreateFrame('Button',nil,parent); b:SetPoint('TOPLEFT',12,-78-(index-1)*41); b:SetSize(188,36)
+    local b=CreateFrame('Button',nil,parent); b:SetPoint('TOPLEFT',12,-20-(index-1)*43); b:SetSize(188,36)
     b.bg=b:CreateTexture(nil,'BACKGROUND'); b.bg:SetAllPoints()
+    local edge=b:CreateTexture(nil,'ARTWORK');edge:SetPoint('TOPLEFT');edge:SetPoint('BOTTOMLEFT');edge:SetWidth(2);edge:SetColorTexture(.12,.72,1,.35)
     b.label=Text(b,'GameFontHighlight',label,14,-10,160)
     b:SetScript('OnEnter',function(self) if key~=activePage then self.bg:SetColorTexture(1,1,1,.04) end end)
     b:SetScript('OnLeave',function(self) if key~=activePage then self.bg:SetColorTexture(0,0,0,0) end end)
@@ -436,11 +418,13 @@ local function BuildWindow()
     f:SetSize(980,720); f:SetPoint('CENTER'); f:SetFrameStrata('DIALOG'); f:SetClampedToScreen(true)
     f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag('LeftButton')
     f:SetScript('OnDragStart',f.StartMoving); f:SetScript('OnDragStop',f.StopMovingOrSizing)
-    Backdrop(f,PANEL[1],PANEL[2],PANEL[3],PANEL[4],{.16,.18,.23,1}); table.insert(UISpecialFrames,'RXPNavigatorControlCenter')
+    if Skin then Skin:Window(f,980,720) else Backdrop(f,PANEL[1],PANEL[2],PANEL[3],PANEL[4],{.16,.18,.23,1}) end; table.insert(UISpecialFrames,'RXPNavigatorControlCenter')
 
     local top=f:CreateTexture(nil,'ARTWORK'); top:SetPoint('TOPLEFT'); top:SetPoint('TOPRIGHT'); top:SetHeight(3); top:SetColorTexture(unpack(ACCENT))
-    local title=Text(f,'GameFontNormalHuge','RestedXP-Navigator',20,-18,500); title:SetTextColor(.95,.97,1)
-    local ver=Text(f,'GameFontDisableSmall','v'..Version(),20,-48,120); ver:SetTextColor(unpack(MUTED))
+    local title=Text(f,'GameFontNormalHuge','RestedXP-Navigator',68,-18,500); title:SetTextColor(.95,.97,1)
+    local logo=f:CreateTexture(nil,'ARTWORK');logo:SetSize(36,36);logo:SetPoint('TOPLEFT',20,-16);logo:SetTexture('Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_IconRound.tga')
+    local ver=Text(f,'GameFontDisableSmall','v'..Version(),68,-46,200); ver:SetTextColor(unpack(MUTED))
+    Button(f,'Edit layout',760,-23,170,function() if Navigator.LayoutEditor then Navigator.LayoutEditor:Open() end end)
     local close=CreateFrame('Button',nil,f,'UIPanelCloseButton'); close:SetPoint('TOPRIGHT',-8,-8)
 
     f.sidebar=CreateFrame('Frame',nil,f); f.sidebar:SetPoint('TOPLEFT',0,-64); f.sidebar:SetPoint('BOTTOMLEFT'); f.sidebar:SetWidth(212)
@@ -455,8 +439,11 @@ local function BuildWindow()
         {'corpse','Corpse Run'},{'advanced','Advanced'},{'info','Info'}
     }
     for i,v in ipairs(nav) do SidebarButton(f.sidebar,v[1],v[2],i) end
+    Button(f.sidebar,'Setup wizard',12,-490,188,function() if Navigator.SetupWizard then Navigator.SetupWizard:Open() end end)
+    Text(f.sidebar,'GameFontDisableSmall','Language: automatic',16,-602,180):SetTextColor(unpack(MUTED))
     window=f; BuildPages(); SelectPage('general')
     f:SetScript('OnShow',function()
+        if Skin then Skin:Fit(f,980,720) end
         SyncDB(); if API.EnsureProfiles then API:EnsureProfiles() end
         for _,r in ipairs(refreshers) do if r and r.Refresh then r:Refresh() end end
         SelectPage(activePage)
@@ -467,6 +454,7 @@ end
 
 function CC:Open(page)
     local f=BuildWindow(); SyncDB()
+    if Skin then Skin:Fit(f,980,720) end
     if page and pages[page] then activePage=page end
     f:Show(); for _,r in ipairs(refreshers) do if r and r.Refresh then r:Refresh() end end; SelectPage(activePage)
 end

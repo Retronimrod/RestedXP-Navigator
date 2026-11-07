@@ -95,16 +95,21 @@ end
 local function IsHearth(e)
     if type(e) ~= "table" or e.skip or e.completed then return false end
     local tag = GetTag(e)
-    if tag == "hs" or tag == "hsbatching" or tag == "home" or tag == "bindlocation" then return true end
+    -- Binding is an innkeeper interaction, never a teleport instruction.
+    if tag == "home" or tag == "bindlocation" then return false end
+    if tag == "hs" or tag == "hsbatching" then return true end
 
     local text = Clean(e.text) or Clean(e.tooltipText) or Clean(e.mapTooltip) or Clean(e.rawtext)
     local low = text and text:lower() or ""
+    -- Unstructured fallback requires an explicit use instruction. Merely
+    -- mentioning a hearthstone also occurs in binding and reminder steps.
     return low:find("hearth to ", 1, true) ~= nil
         or low:find("use your hearthstone", 1, true) ~= nil
-        or low:find("hearthstone to ", 1, true) ~= nil
-        or low:find("ruhestein", 1, true) ~= nil
-        or low:find("pierre de foyer", 1, true) ~= nil
-        or low:find("piedra de hogar", 1, true) ~= nil
+        or low:find("use hearthstone", 1, true) ~= nil
+        or low:find("benutze deinen ruhestein", 1, true) ~= nil
+        or low:find("benutzt euren ruhestein", 1, true) ~= nil
+        or low:find("nutze deinen ruhestein", 1, true) ~= nil
+
 end
 
 local function FindHearthInStep(step)

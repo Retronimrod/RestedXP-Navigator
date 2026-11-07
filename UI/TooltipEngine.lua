@@ -8,7 +8,7 @@ local Engine = Navigator.TooltipEngine
 
 local function T(en, de)
     local locale = GetLocale and GetLocale() or "enUS"
-    return locale == "deDE" and de or en
+    return API:Localize(en)
 end
 
 local function IsSameText(a, b)

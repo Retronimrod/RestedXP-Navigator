@@ -1,5 +1,14 @@
 # RestedXP-Navigator Changelog
 
+## 1.7.0
+
+- World Map routes, outlines, target rings and direction indicators adjust to map zoom.
+- Added a first-run setup wizard with shared and character-specific profiles.
+- HUD elements can be moved and scaled in Edit Mode.
+- Added optional quest progress and completion announcements in group chat.
+- Localized the interface for all supported client languages.
+- Added selectable built-in world marker styles and personal raid symbols.
+
 ## 1.5.27
 - Restored the exact native-waypoint suppression strategy that was already proven to work in v1.5.15.
 - The regression was introduced when the safety-hardening pass removed the `SuperTrackedFrameMixin:SetTargetAlphaForState()` suppression that prevented Blizzard's own alpha lerp from restoring the gold waypoint and distance.

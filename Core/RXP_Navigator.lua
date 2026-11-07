@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = "1.6.11"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.0"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -21,163 +21,146 @@ local CORPSE_LINE_BRIGHT = {0.96, 0.10, 0.08}
 local CORPSE_OUTLINE = {0.16, 0.005, 0.005}
 local CORPSE_SKULL_TEXTURE = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8"
 
-local LOCALES = {
-    enUS = {
-        subtitle = "Standalone navigation for RXPGuides – minimap, world map, target markers and upcoming goals.",
-        colorTheme = "Color theme", display = "Display", line = "Line", upcoming = "Upcoming goals",
-        enabled = "Enable navigator", minimap = "Show on minimap", worldmap = "Show on world/zone map", distance = "Show distance on minimap",
-        marker = "Show target marker with golden border", tooltip = "Mouseover tooltip on world-map targets", animation = "Animated direction arrows", hudArrow = "Show direction arrow with distance and ETA", hudSettings="Navigation Arrow", hudMode="Arrow mode", hud2D="2D", hud3D="3D", hudDesign="Design", hudModern="Modern", hudClassic="Classic", hudLock="Lock position", hudSize="Arrow Size", hudArrowStyle="Arrow Style", hudStyleClassic="Classic Clear", hudStyleCompass="Compass Bronze", hudStyleCrystal="Crystal Glow", hudDistance="Show distance", hudETA="Show ETA", hudResetPos="Reset Arrow Position", hudColor="Arrow Color", hudDragHint="Drag the navigation arrow while unlocked",
-        thin = "Thin", normal = "Normal", strong = "Strong", maxMinimap = "Max. minimap length", animSpeed = "Animation speed", targetSize = "Target marker size",
-        futureDesc = "Show additional RestedXP destinations after the current target.", future0 = "Off", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "Defaults", resetDone = "Settings reset", resetConfirm = "Reset all RestedXP-Navigator settings to their defaults? Your current configuration will be lost.", resetConfirmYes = "Reset", resetConfirmNo = "Cancel", step = "RXP Step", target = "RXP Target", current = "Current", next = "Next",
-        commands = "Commands", loaded = "loaded", language = "Language: automatic",
-        theme_navigator = "Navigator Green", theme_emerald = "Emerald", theme_cyan = "Arcane Blue", theme_gold = "Gold", theme_red = "Ember Red", theme_violet = "Violet",
-    },
-    deDE = {
-        subtitle = "Standalone-Navigation für RXPGuides – Minimap, Weltkarte, Zielmarker und Folgeziele.",
-        colorTheme = "Farb-Theme", display = "Anzeige", line = "Linie", upcoming = "Folgeziele",
-        enabled = "Navigator aktiv", minimap = "Auf Minimap anzeigen", worldmap = "Auf Welt-/Zonenkarte anzeigen", distance = "Distanz auf der Minimap anzeigen",
-        marker = "Zielpunkt mit goldenem Rand anzeigen", tooltip = "Mouseover-Tooltip an Weltkarten-Zielen", animation = "Animierte Richtungspfeile", hudArrow = "Richtungspfeil mit Distanz und ETA anzeigen", hudSettings="Navigationspfeil", hudMode="Pfeilmodus", hud2D="2D", hud3D="3D", hudDesign="Design", hudModern="Modern", hudClassic="Klassisch", hudLock="Position sperren", hudSize="Pfeilgröße", hudArrowStyle="Pfeilstil", hudStyleClassic="Klassisch klar", hudStyleCompass="Kompass Bronze", hudStyleCrystal="Kristallglanz", hudDistance="Distanz anzeigen", hudETA="ETA anzeigen", hudResetPos="Pfeilposition zurücksetzen", hudColor="Pfeilfarbe", hudDragHint="Navigationspfeil entsperren und zum Verschieben ziehen",
-        thin = "Dünn", normal = "Normal", strong = "Kräftig", maxMinimap = "Max. Minimap-Länge", animSpeed = "Animationsgeschwindigkeit", targetSize = "Zielpunkt-Größe",
-        futureDesc = "Zusätzliche RestedXP-Ziele nach dem aktuellen Ziel anzeigen.", future0 = "Aus", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "Standardwerte", resetDone = "Einstellungen zurückgesetzt", resetConfirm = "Alle RestedXP-Navigator-Einstellungen auf die Standardwerte zurücksetzen? Deine aktuelle Konfiguration geht dabei verloren.", resetConfirmYes = "Zurücksetzen", resetConfirmNo = "Abbrechen", step = "RXP Schritt", target = "RXP Ziel", current = "Aktuell", next = "Danach",
-        commands = "Befehle", loaded = "geladen", language = "Sprache: automatisch",
-        theme_navigator = "Navigator Grün", theme_emerald = "Smaragd", theme_cyan = "Arkanblau", theme_gold = "Gold", theme_red = "Glutrot", theme_violet = "Violett",
-    },
-    frFR = {
-        subtitle = "Navigation autonome pour RXPGuides – minicarte, carte du monde, marqueurs et objectifs suivants.",
-        colorTheme = "Thème de couleur", display = "Affichage", line = "Ligne", upcoming = "Objectifs suivants",
-        enabled = "Activer le navigateur", minimap = "Afficher sur la minicarte", worldmap = "Afficher sur la carte du monde/de zone", distance = "Afficher la distance sur la minicarte",
-        marker = "Afficher le marqueur avec bordure dorée", tooltip = "Infobulle au survol des objectifs", animation = "Flèches directionnelles animées", hudArrow = "Afficher la flèche de direction avec distance et ETA", hudSettings="Flèche de navigation", hudMode="Mode de flèche", hud2D="2D", hud3D="3D", hudDesign="Design", hudModern="Moderne", hudClassic="Classique", hudLock="Verrouiller la position", hudSize="Taille de la flèche", hudDistance="Afficher la distance", hudETA="Afficher l’ETA", hudResetPos="Réinitialiser la position de la flèche", hudColor="Couleur de la flèche", hudDragHint="Déverrouillez puis faites glisser la flèche de navigation",
-        thin = "Fine", normal = "Normale", strong = "Épaisse", maxMinimap = "Longueur max. minicarte", animSpeed = "Vitesse d’animation", targetSize = "Taille du marqueur",
-        futureDesc = "Afficher des destinations RestedXP après l’objectif actuel.", future0 = "Désactivé", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "Valeurs par défaut", resetDone = "Paramètres réinitialisés", step = "Étape RXP", target = "Objectif RXP", current = "Actuel", next = "Suivant",
-        theme_navigator = "Vert Navigateur", theme_emerald = "Émeraude", theme_cyan = "Bleu arcanique", theme_gold = "Or", theme_red = "Rouge braise", theme_violet = "Violet",
-    },
-    esES = {
-        subtitle = "Navegación independiente para RXPGuides – minimapa, mapa mundial, marcadores y objetivos siguientes.",
-        colorTheme = "Tema de color", display = "Visualización", line = "Línea", upcoming = "Objetivos siguientes",
-        enabled = "Activar navegador", minimap = "Mostrar en minimapa", worldmap = "Mostrar en mapa mundial/de zona", distance = "Mostrar distancia en minimapa",
-        marker = "Mostrar marcador con borde dorado", tooltip = "Descripción al pasar el ratón por objetivos", animation = "Flechas de dirección animadas", hudArrow = "Mostrar flecha de dirección con distancia y ETA", hudSettings="Flecha de navegación", hudMode="Modo de flecha", hud2D="2D", hud3D="3D", hudDesign="Diseño", hudModern="Moderno", hudClassic="Clásico", hudLock="Bloquear posición", hudSize="Tamaño de la flecha", hudDistance="Mostrar distancia", hudETA="Mostrar ETA", hudResetPos="Restablecer posición de la flecha", hudColor="Color de la flecha", hudDragHint="Desbloquea y arrastra la flecha de navegación",
-        thin = "Fina", normal = "Normal", strong = "Gruesa", maxMinimap = "Longitud máx. del minimapa", animSpeed = "Velocidad de animación", targetSize = "Tamaño del marcador",
-        futureDesc = "Mostrar destinos adicionales de RestedXP después del objetivo actual.", future0 = "Desactivado", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "Valores predeterminados", resetDone = "Ajustes restablecidos", step = "Paso RXP", target = "Objetivo RXP", current = "Actual", next = "Siguiente",
-        theme_navigator = "Verde Navegador", theme_emerald = "Esmeralda", theme_cyan = "Azul arcano", theme_gold = "Oro", theme_red = "Rojo brasa", theme_violet = "Violeta",
-    },
-    itIT = {
-        subtitle = "Navigazione standalone per RXPGuides – minimappa, mappa del mondo, indicatori e obiettivi successivi.",
-        colorTheme = "Tema colore", display = "Visualizzazione", line = "Linea", upcoming = "Obiettivi successivi",
-        enabled = "Attiva navigatore", minimap = "Mostra sulla minimappa", worldmap = "Mostra sulla mappa del mondo/zona", distance = "Mostra distanza sulla minimappa",
-        marker = "Mostra indicatore con bordo dorato", tooltip = "Tooltip al passaggio sugli obiettivi", animation = "Frecce direzionali animate", hudArrow = "Mostra freccia direzionale con distanza ed ETA", hudSettings="Freccia di navigazione", hudMode="Modalità freccia", hud2D="2D", hud3D="3D", hudDesign="Design", hudModern="Moderno", hudClassic="Classico", hudLock="Blocca posizione", hudSize="Dimensione freccia", hudDistance="Mostra distanza", hudETA="Mostra ETA", hudResetPos="Reimposta posizione freccia", hudColor="Colore freccia", hudDragHint="Sblocca e trascina la freccia di navigazione",
-        thin = "Sottile", normal = "Normale", strong = "Spessa", maxMinimap = "Lunghezza max minimappa", animSpeed = "Velocità animazione", targetSize = "Dimensione indicatore",
-        futureDesc = "Mostra destinazioni RestedXP aggiuntive dopo l’obiettivo attuale.", future0 = "Disattivato", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "Predefiniti", resetDone = "Impostazioni ripristinate", step = "Passo RXP", target = "Obiettivo RXP", current = "Attuale", next = "Successivo",
-        theme_navigator = "Verde Navigatore", theme_emerald = "Smeraldo", theme_cyan = "Blu arcano", theme_gold = "Oro", theme_red = "Rosso brace", theme_violet = "Viola",
-    },
-    ptBR = {
-        subtitle = "Navegação independente para RXPGuides – minimapa, mapa-múndi, marcadores e próximos objetivos.",
-        colorTheme = "Tema de cor", display = "Exibição", line = "Linha", upcoming = "Próximos objetivos",
-        enabled = "Ativar navegador", minimap = "Mostrar no minimapa", worldmap = "Mostrar no mapa-múndi/zona", distance = "Mostrar distância no minimapa",
-        marker = "Mostrar marcador com borda dourada", tooltip = "Tooltip ao passar sobre os objetivos", animation = "Setas de direção animadas", hudArrow = "Mostrar seta de direção com distância e ETA", hudSettings="Seta de navegação", hudMode="Modo da seta", hud2D="2D", hud3D="3D", hudDesign="Design", hudModern="Moderno", hudClassic="Clássico", hudLock="Bloquear posição", hudSize="Tamanho da seta", hudDistance="Mostrar distância", hudETA="Mostrar ETA", hudResetPos="Redefinir posição da seta", hudColor="Cor da seta", hudDragHint="Desbloqueie e arraste a seta de navegação",
-        thin = "Fina", normal = "Normal", strong = "Forte", maxMinimap = "Comprimento máx. do minimapa", animSpeed = "Velocidade da animação", targetSize = "Tamanho do marcador",
-        futureDesc = "Mostrar destinos adicionais do RestedXP após o objetivo atual.", future0 = "Desligado", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "Padrões", resetDone = "Configurações restauradas", step = "Etapa RXP", target = "Objetivo RXP", current = "Atual", next = "Próximo",
-        theme_navigator = "Verde Navegador", theme_emerald = "Esmeralda", theme_cyan = "Azul arcano", theme_gold = "Ouro", theme_red = "Vermelho brasa", theme_violet = "Violeta",
-    },
-    ruRU = {
-        subtitle = "Автономная навигация для RXPGuides — мини-карта, карта мира, маркеры целей и следующие цели.",
-        colorTheme = "Цветовая тема", display = "Отображение", line = "Линия", upcoming = "Следующие цели",
-        enabled = "Включить навигатор", minimap = "Показывать на мини-карте", worldmap = "Показывать на карте мира/зоны", distance = "Показывать расстояние на мини-карте",
-        marker = "Показывать маркер цели с золотой рамкой", tooltip = "Подсказка при наведении на цель на карте", animation = "Анимированные стрелки направления", hudArrow = "Показывать навигационную стрелку с расстоянием и ETA", hudSettings="Навигационная стрелка", hudMode="Режим стрелки", hud2D="2D", hud3D="3D", hudDesign="Дизайн", hudModern="Современный", hudClassic="Классический", hudLock="Заблокировать позицию", hudSize="Размер стрелки", hudDistance="Показывать расстояние", hudETA="Показывать ETA", hudResetPos="Сбросить позицию стрелки", hudColor="Цвет стрелки", hudDragHint="Разблокируйте и перетащите навигационную стрелку",
-        thin = "Тонкая", normal = "Обычная", strong = "Толстая", maxMinimap = "Макс. длина на мини-карте", animSpeed = "Скорость анимации", targetSize = "Размер маркера цели",
-        futureDesc = "Показывать дополнительные цели RestedXP после текущей.", future0 = "Выкл.", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "По умолчанию", resetDone = "Настройки сброшены", step = "Шаг RXP", target = "Цель RXP", current = "Текущая", next = "Далее",
-        theme_navigator = "Зелёный навигатор", theme_emerald = "Изумруд", theme_cyan = "Магический синий", theme_gold = "Золото", theme_red = "Огненно-красный", theme_violet = "Фиолетовый",
-    },
-    koKR = {
-        subtitle = "RXPGuides용 독립 내비게이션 — 미니맵, 월드맵, 목표 마커 및 다음 목표.",
-        colorTheme = "색상 테마", display = "표시", line = "경로선", upcoming = "다음 목표",
-        enabled = "내비게이터 사용", minimap = "미니맵에 표시", worldmap = "월드/지역 지도에 표시", distance = "미니맵에 거리 표시",
-        marker = "금색 테두리 목표 마커 표시", tooltip = "월드맵 목표 마우스오버 툴팁", animation = "애니메이션 방향 화살표", hudArrow = "거리 및 ETA가 포함된 내비게이션 화살표 표시", hudSettings="내비게이션 화살표", hudMode="화살표 모드", hud2D="2D", hud3D="3D", hudDesign="디자인", hudModern="모던", hudClassic="클래식", hudLock="위치 잠금", hudSize="화살표 크기", hudDistance="거리 표시", hudETA="ETA 표시", hudResetPos="화살표 위치 초기화", hudColor="화살표 색상", hudDragHint="잠금을 해제한 뒤 내비게이션 화살표를 드래그하세요",
-        thin = "얇게", normal = "보통", strong = "굵게", maxMinimap = "미니맵 최대 길이", animSpeed = "애니메이션 속도", targetSize = "목표 마커 크기",
-        futureDesc = "현재 목표 이후의 추가 RestedXP 목적지를 표시합니다.", future0 = "끔", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "기본값", resetDone = "설정이 초기화되었습니다", step = "RXP 단계", target = "RXP 목표", current = "현재", next = "다음",
-        theme_navigator = "내비게이터 그린", theme_emerald = "에메랄드", theme_cyan = "비전 블루", theme_gold = "골드", theme_red = "엠버 레드", theme_violet = "바이올렛",
-    },
-    zhCN = {
-        subtitle = "RXPGuides 独立导航 — 小地图、世界地图、目标标记和后续目标。",
-        colorTheme = "颜色主题", display = "显示", line = "路线", upcoming = "后续目标",
-        enabled = "启用导航", minimap = "在小地图显示", worldmap = "在世界/区域地图显示", distance = "在小地图显示距离",
-        marker = "显示带金色边框的目标标记", tooltip = "世界地图目标鼠标提示", animation = "动态方向箭头", hudArrow = "显示带距离和 ETA 的导航箭头", hudSettings="导航箭头", hudMode="箭头模式", hud2D="2D", hud3D="3D", hudDesign="设计", hudModern="现代", hudClassic="经典", hudLock="锁定位置", hudSize="箭头大小", hudDistance="显示距离", hudETA="显示 ETA", hudResetPos="重置箭头位置", hudColor="箭头颜色", hudDragHint="解锁后拖动导航箭头",
-        thin = "细", normal = "普通", strong = "粗", maxMinimap = "小地图最大长度", animSpeed = "动画速度", targetSize = "目标标记大小",
-        futureDesc = "显示当前目标之后的额外 RestedXP 目的地。", future0 = "关闭", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "默认值", resetDone = "设置已重置", step = "RXP 步骤", target = "RXP 目标", current = "当前", next = "下一步",
-        theme_navigator = "导航绿", theme_emerald = "翡翠", theme_cyan = "奥术蓝", theme_gold = "金色", theme_red = "余烬红", theme_violet = "紫罗兰",
-    },
-    zhTW = {
-        subtitle = "RXPGuides 獨立導航 — 小地圖、世界地圖、目標標記與後續目標。",
-        colorTheme = "顏色主題", display = "顯示", line = "路線", upcoming = "後續目標",
-        enabled = "啟用導航", minimap = "顯示於小地圖", worldmap = "顯示於世界/區域地圖", distance = "在小地圖顯示距離",
-        marker = "顯示帶金色邊框的目標標記", tooltip = "世界地圖目標滑鼠提示", animation = "動態方向箭頭", hudArrow = "顯示含距離與 ETA 的導航箭頭", hudSettings="導航箭頭", hudMode="箭頭模式", hud2D="2D", hud3D="3D", hudDesign="設計", hudModern="現代", hudClassic="經典", hudLock="鎖定位置", hudSize="箭頭大小", hudDistance="顯示距離", hudETA="顯示 ETA", hudResetPos="重設箭頭位置", hudColor="箭頭顏色", hudDragHint="解鎖後拖曳導航箭頭",
-        thin = "細", normal = "一般", strong = "粗", maxMinimap = "小地圖最大長度", animSpeed = "動畫速度", targetSize = "目標標記大小",
-        futureDesc = "顯示目前目標之後的額外 RestedXP 目的地。", future0 = "關閉", future1 = "+1", future2 = "+2", future3 = "+3", future4 = "+4", future5 = "+5", future6 = "+6",
-        reset = "預設值", resetDone = "設定已重設", step = "RXP 步驟", target = "RXP 目標", current = "目前", next = "下一步",
-        theme_navigator = "導航綠", theme_emerald = "翡翠", theme_cyan = "秘法藍", theme_gold = "金色", theme_red = "餘燼紅", theme_violet = "紫羅蘭",
-    },
+local SOURCE_KEYS = {
+    ["advancedSection"] = "Advanced",
+    ["alsoHere"] = "Also at this location",
+    ["animSpeed"] = "Animation speed",
+    ["animation"] = "Animated direction arrows",
+    ["bugReport"] = "Bug report",
+    ["colorTheme"] = "Color theme",
+    ["commands"] = "Commands",
+    ["corpse"] = "Corpse",
+    ["corpseAnimSpeed"] = "Skull animation speed",
+    ["corpseHudSkullSize"] = "HUD skull size",
+    ["corpseNearby"] = "Corpse nearby",
+    ["corpseRouteSkullSize"] = "Route skull size",
+    ["corpseRun"] = "Corpse Run",
+    ["corpseSettings"] = "Corpse Run",
+    ["corpseSkullOpacity"] = "Skull opacity",
+    ["current"] = "Current",
+    ["currentHighlight"] = "Highlight current target",
+    ["display"] = "Display",
+    ["distance"] = "Show distance on minimap",
+    ["enabled"] = "Enable navigator",
+    ["farmOpacity"] = "Farm opacity",
+    ["farmRoutes"] = "Farm routes",
+    ["future0"] = "Off",
+    ["future1"] = "+1",
+    ["future2"] = "+2",
+    ["future3"] = "+3",
+    ["future4"] = "+4",
+    ["future5"] = "+5",
+    ["future6"] = "+6",
+    ["futureDesc"] = "Show additional RestedXP destinations after the current target.",
+    ["generalSection"] = "General",
+    ["ghostNav"] = "Corpse-run navigation while dead",
+    ["groupedHere"] = "Goals at this location",
+    ["hud2D"] = "2D",
+    ["hud3D"] = "3D",
+    ["hudArrow"] = "Show direction arrow with distance and ETA",
+    ["hudArrowStyle"] = "Arrow Style",
+    ["hudClassic"] = "Classic",
+    ["hudColor"] = "Arrow Color",
+    ["hudDesign"] = "Design",
+    ["hudDistance"] = "Show distance",
+    ["hudDragHint"] = "Drag the navigation arrow while unlocked",
+    ["hudETA"] = "Show ETA",
+    ["hudLock"] = "Lock position",
+    ["hudMode"] = "Arrow mode",
+    ["hudModern"] = "Modern",
+    ["hudResetPos"] = "Reset Arrow Position",
+    ["hudSettings"] = "Navigation Arrow",
+    ["hudSize"] = "Arrow Size",
+    ["hudStyleClassic"] = "Classic Clear",
+    ["hudStyleCompass"] = "Compass Bronze",
+    ["hudStyleCrystal"] = "Crystal Glow",
+    ["hudTextSize"] = "Text Size",
+    ["language"] = "Language: automatic",
+    ["line"] = "Line",
+    ["loaded"] = "loaded",
+    ["mapDiagnostics"] = "Map diagnostics",
+    ["marker"] = "Show target marker with golden border",
+    ["maxMinimap"] = "Max. minimap length",
+    ["minimap"] = "Show on minimap",
+    ["minimapAnimSpeed"] = "Minimap arrow speed",
+    ["minimapButton"] = "Minimap settings button",
+    ["minimapMarkerSize"] = "Minimap marker size",
+    ["minimapSection"] = "Minimap",
+    ["next"] = "Next",
+    ["nextZone"] = "Next zone",
+    ["normal"] = "Normal",
+    ["objectMarkers"] = "Quest object markers",
+    ["offscreenIndicator"] = "Off-screen target indicator",
+    ["patrolOpacity"] = "Patrol opacity",
+    ["patrolPaths"] = "Patrol paths",
+    ["questProgress"] = "Show quest progress in target tooltip",
+    ["reset"] = "Defaults",
+    ["resetConfirm"] = "Reset all RestedXP-Navigator settings to their defaults? Your current configuration will be lost.",
+    ["resetConfirmNo"] = "Cancel",
+    ["resetConfirmYes"] = "Reset",
+    ["resetDone"] = "Settings reset",
+    ["returnCorpse"] = "Return to your corpse",
+    ["routeDistances"] = "Show distance between route steps",
+    ["routePreview"] = "Route preview",
+    ["rxpActiveCircle"] = "Show RestedXP active target circle",
+    ["searchAreaOpacity"] = "Search area opacity",
+    ["searchAreas"] = "Search areas",
+    ["spiritHealer"] = "Show Spirit Healer hint while dead",
+    ["spiritHealerLabel"] = "Spirit Healer",
+    ["step"] = "RXP Step",
+    ["stepTypeIcons"] = "Show step-type icon in target tooltip",
+    ["strong"] = "Strong",
+    ["subtitle"] = "Standalone navigation for RXPGuides – minimap, world map, target markers and upcoming goals.",
+    ["target"] = "RXP Target",
+    ["targetSize"] = "Target marker size",
+    ["theme_cyan"] = "Arcane Blue",
+    ["theme_emerald"] = "Emerald",
+    ["theme_gold"] = "Gold",
+    ["theme_navigator"] = "Navigator Green",
+    ["theme_red"] = "Ember Red",
+    ["theme_violet"] = "Violet",
+    ["thin"] = "Thin",
+    ["tooltip"] = "Mouseover tooltip on world-map targets",
+    ["tooltipObjective"] = "Objective",
+    ["tooltipProgress"] = "Progress",
+    ["tooltipType"] = "Type",
+    ["transportHints"] = "Travel/transport hints",
+    ["travel"] = "Travel",
+    ["travelShip"] = "Ship",
+    ["travelStart"] = "Start",
+    ["travelThen"] = "Then",
+    ["travelTo"] = "Travel to",
+    ["travelZeppelin"] = "Zeppelin",
+    ["upcoming"] = "Upcoming goals",
+    ["upcomingAmount"] = "Upcoming goals",
+    ["worldAnimSpeed"] = "World-map arrow speed",
+    ["worldMarkerBeam"] = "Show world-marker beam",
+    ["worldMarkerHeader"] = "Show in-world target header",
+    ["worldMarkerNative"] = "Native in-world target marker",
+    ["worldMarkerSize"] = "World-map marker size",
+    ["worldmap"] = "Show on world/zone map",
+    ["worldmapSection"] = "World Map",
+    ["zoneHints"] = "Zone transition hints",
 }
-
-local EXTRA_LOCALES = {
-    enUS = { generalSection="General", minimapSection="Minimap", worldmapSection="World Map", advancedSection="Advanced", ghostNav="Corpse-run navigation while dead", upcomingAmount="Upcoming goals", groupedHere="Goals at this location", alsoHere="Also at this location", corpse="Corpse", corpseRun="Corpse Run", returnCorpse="Return to your corpse", corpseSettings="Corpse Run", corpseSkullOpacity="Skull opacity", corpseHudSkullSize="HUD skull size", corpseRouteSkullSize="Route skull size", corpseAnimSpeed="Skull animation speed", hudTextSize="Text Size" },
-    deDE = { generalSection="Allgemein", minimapSection="Minimap", worldmapSection="Weltkarte", advancedSection="Erweitert", ghostNav="Leichen-Navigation im Geistmodus", upcomingAmount="Folgeziele", groupedHere="Ziele an diesem Ort", alsoHere="Ebenfalls an diesem Ort", corpse="Leiche", corpseRun="Leichenlauf", returnCorpse="Kehre zu deiner Leiche zurück", corpseSettings="Leichenlauf", corpseSkullOpacity="Schädel-Deckkraft", corpseHudSkullSize="HUD-Schädelgröße", corpseRouteSkullSize="Routen-Schädelgröße", corpseAnimSpeed="Schädel-Animationsgeschwindigkeit", hudTextSize="Textgröße" },
-    frFR = { generalSection="Général", minimapSection="Minicarte", worldmapSection="Carte du monde", advancedSection="Avancé", ghostNav="Navigation vers le cadavre en fantôme", upcomingAmount="Objectifs suivants", groupedHere="Objectifs à cet emplacement", alsoHere="Également à cet emplacement", corpse="Cadavre", corpseRun="Retour au cadavre", returnCorpse="Retournez à votre cadavre", corpseSettings="Retour au cadavre", corpseSkullOpacity="Opacité du crâne", corpseHudSkullSize="Taille du crâne HUD", corpseRouteSkullSize="Taille des crânes de route", corpseAnimSpeed="Vitesse des crânes", hudTextSize="Taille du texte" },
-    esES = { generalSection="General", minimapSection="Minimapa", worldmapSection="Mapa mundial", advancedSection="Avanzado", ghostNav="Navegación al cadáver como fantasma", upcomingAmount="Objetivos siguientes", groupedHere="Objetivos en esta ubicación", alsoHere="También en esta ubicación", corpse="Cadáver", corpseRun="Regreso al cadáver", returnCorpse="Regresa a tu cadáver", corpseSettings="Regreso al cadáver", corpseSkullOpacity="Opacidad de calavera", corpseHudSkullSize="Tamaño calavera HUD", corpseRouteSkullSize="Tamaño calaveras de ruta", corpseAnimSpeed="Velocidad de calaveras", hudTextSize="Tamaño del texto" },
-    itIT = { generalSection="Generale", minimapSection="Minimappa", worldmapSection="Mappa del mondo", advancedSection="Avanzate", ghostNav="Navigazione al cadavere da fantasma", upcomingAmount="Obiettivi successivi", groupedHere="Obiettivi in questa posizione", alsoHere="Anche in questa posizione", corpse="Cadavere", corpseRun="Ritorno al cadavere", returnCorpse="Torna al tuo cadavere", corpseSettings="Ritorno al cadavere", corpseSkullOpacity="Opacità teschio", corpseHudSkullSize="Dimensione teschio HUD", corpseRouteSkullSize="Dimensione teschi percorso", corpseAnimSpeed="Velocità teschi", hudTextSize="Dimensione testo" },
-    ptBR = { generalSection="Geral", minimapSection="Minimapa", worldmapSection="Mapa-múndi", advancedSection="Avançado", ghostNav="Navegação até o corpo como fantasma", upcomingAmount="Próximos objetivos", groupedHere="Objetivos neste local", alsoHere="Também neste local", corpse="Corpo", corpseRun="Corrida ao corpo", returnCorpse="Volte ao seu corpo", corpseSettings="Corrida ao corpo", corpseSkullOpacity="Opacidade da caveira", corpseHudSkullSize="Tamanho da caveira HUD", corpseRouteSkullSize="Tamanho das caveiras da rota", corpseAnimSpeed="Velocidade das caveiras", hudTextSize="Tamanho do texto" },
-    ruRU = { generalSection="Общие", minimapSection="Мини-карта", worldmapSection="Карта мира", advancedSection="Дополнительно", ghostNav="Навигация к телу в облике духа", upcomingAmount="Следующие цели", groupedHere="Цели в этой точке", alsoHere="Также в этой точке", corpse="Тело", corpseRun="Путь к телу", returnCorpse="Вернитесь к своему телу", corpseSettings="Путь к телу", corpseSkullOpacity="Прозрачность черепа", corpseHudSkullSize="Размер черепа HUD", corpseRouteSkullSize="Размер черепов маршрута", corpseAnimSpeed="Скорость черепов", hudTextSize="Размер текста" },
-    koKR = { generalSection="일반", minimapSection="미니맵", worldmapSection="월드맵", advancedSection="고급", ghostNav="유령 상태에서 시체까지 안내", upcomingAmount="다음 목표", groupedHere="이 위치의 목표", alsoHere="이 위치의 추가 목표", corpse="시체", corpseRun="시체로 이동", returnCorpse="시체로 돌아가세요", corpseSettings="시체로 이동", corpseSkullOpacity="해골 투명도", corpseHudSkullSize="HUD 해골 크기", corpseRouteSkullSize="경로 해골 크기", corpseAnimSpeed="해골 애니메이션 속도", hudTextSize="텍스트 크기" },
-    zhCN = { generalSection="常规", minimapSection="小地图", worldmapSection="世界地图", advancedSection="高级", ghostNav="灵魂状态导航至尸体", upcomingAmount="后续目标", groupedHere="此位置的目标", alsoHere="此位置的其他目标", corpse="尸体", corpseRun="跑尸", returnCorpse="返回你的尸体", corpseSettings="跑尸", corpseSkullOpacity="骷髅透明度", corpseHudSkullSize="HUD 骷髅大小", corpseRouteSkullSize="路线骷髅大小", corpseAnimSpeed="骷髅动画速度", hudTextSize="文字大小" },
-    zhTW = { generalSection="一般", minimapSection="小地圖", worldmapSection="世界地圖", advancedSection="進階", ghostNav="靈魂狀態導航至屍體", upcomingAmount="後續目標", groupedHere="此位置的目標", alsoHere="此位置的其他目標", corpse="屍體", corpseRun="跑屍", returnCorpse="返回你的屍體", corpseSettings="跑屍", corpseSkullOpacity="骷髏透明度", corpseHudSkullSize="HUD 骷髏大小", corpseRouteSkullSize="路線骷髏大小", corpseAnimSpeed="骷髏動畫速度", hudTextSize="文字大小" },
-}
-for code, values in pairs(EXTRA_LOCALES) do
-    if LOCALES[code] then
-        for key, value in pairs(values) do LOCALES[code][key] = value end
-    end
-end
-
-LOCALES.esMX = LOCALES.esES
-LOCALES.enGB = LOCALES.enUS
-
-local FEATURE_LOCALES = {
-    enUS = {
-        offscreenIndicator="Off-screen target indicator", currentHighlight="Highlight current target", routeDistances="Show distance between route steps", tooltipType="Type", tooltipProgress="Progress", tooltipObjective="Objective",
-        stepTypeIcons="Show step-type icon in target tooltip", questProgress="Show quest progress in target tooltip", zoneHints="Zone transition hints", transportHints="Travel/transport hints",
-        spiritHealer="Show Spirit Healer hint while dead", corpseNearby="Corpse nearby",
-        minimapMarkerSize="Minimap marker size", worldMarkerSize="World-map marker size", minimapAnimSpeed="Minimap arrow speed", worldAnimSpeed="World-map arrow speed",
-        mapDiagnostics="Map diagnostics", bugReport="Bug report", nextZone="Next zone", travel="Travel", travelTo="Travel to", travelZeppelin="Zeppelin", travelShip="Ship", travelStart="Start", travelThen="Then", spiritHealerLabel="Spirit Healer", routePreview="Route preview", rxpActiveCircle="Show RestedXP active target circle", searchAreas="Search areas", patrolPaths="Patrol paths", farmRoutes="Farm routes", objectMarkers="Quest object markers", searchAreaOpacity="Search area opacity", patrolOpacity="Patrol opacity", farmOpacity="Farm opacity", minimapButton="Minimap settings button", worldMarkerNative="Native in-world target marker", worldMarkerHeader="Show in-world target header", worldMarkerBeam="Show world-marker beam",
-    },
-    deDE = {
-        offscreenIndicator="Off-Screen-Zielanzeige", currentHighlight="Aktuelles Ziel hervorheben", routeDistances="Distanz zwischen Routenzielen anzeigen", tooltipType="Typ", tooltipProgress="Fortschritt", tooltipObjective="Ziel",
-        stepTypeIcons="Step-Typ-Symbol im Ziel-Tooltip anzeigen", questProgress="Questfortschritt im Ziel-Tooltip anzeigen", zoneHints="Gebietswechsel-Hinweise", transportHints="Reise-/Transport-Hinweise",
-        spiritHealer="Geistheiler-Hinweis im Geistmodus", corpseNearby="Leiche in der Nähe",
-        minimapMarkerSize="Minimap-Markergröße", worldMarkerSize="Weltkarten-Markergröße", minimapAnimSpeed="Minimap-Pfeilgeschwindigkeit", worldAnimSpeed="Weltkarten-Pfeilgeschwindigkeit",
-        mapDiagnostics="Kartendiagnose", bugReport="Fehlerbericht", nextZone="Nächstes Gebiet", travel="Reise", travelTo="Reise nach", travelZeppelin="Zeppelin", travelShip="Schiff", travelStart="Start", travelThen="Danach", spiritHealerLabel="Geistheiler", routePreview="Routenvorschau", rxpActiveCircle="RestedXP-Zielkreis auf der Karte anzeigen", searchAreas="Suchbereiche", patrolPaths="Patrouillenwege", farmRoutes="Farmrouten", objectMarkers="Questobjekt-Marker", searchAreaOpacity="Suchbereich-Deckkraft", patrolOpacity="Patrouillen-Deckkraft", farmOpacity="Farmrouten-Deckkraft", minimapButton="Minimap-Einstellungsbutton", worldMarkerNative="Nativer Zielmarker in der Spielwelt", worldMarkerHeader="Zielkopf für Weltmarker anzeigen", worldMarkerBeam="Lichtstrahl am Weltmarker anzeigen",
-    },
-}
-for code, values in pairs(FEATURE_LOCALES) do
-    if LOCALES[code] then for key, value in pairs(values) do LOCALES[code][key] = value end end
-end
-
-local function GetLocaleTable()
-    local code = GetLocale and GetLocale() or "enUS"
-    return LOCALES[code] or LOCALES.enUS
-end
-
 local function L(key)
-    local t = GetLocaleTable()
-    return t[key] or LOCALES.enUS[key] or key
+    local source = SOURCE_KEYS[key] or key
+    return _G.RXPNavigatorLocale and _G.RXPNavigatorLocale:Get(source) or source
 end
 
 local defaults = {
+    layoutHUDX = -1,
+    layoutHUDY = -1,
+    layoutHUDScale = 1,
+    layoutHeaderX = -1,
+    layoutHeaderY = -1,
+    layoutHeaderScale = 1,
+    layoutGroupX = -1,
+    layoutGroupY = -1,
+    layoutGroupScale = 1,
+
+    questChatProgress = true,
+    questChatCompletion = true,
+    questChatAllQuests = false,
     enabled = true,
     showMinimap = true,
     showDistance = true,
@@ -239,6 +222,9 @@ local defaults = {
     showWorldMarkerDistance = true,
     worldMarkerBeamDistance = 65,
     worldMarkerScale = 1.0,
+    worldMarkerStyle = "auto",
+    worldMarkerUseRaidSymbols = false,
+    worldMarkerRaidSymbol = 3,
     worldMarkerNPCAutoAnchor = true,
     worldMarkerNPCMaxDistance = 75,
     worldMarkerHideBlizzard = true,
@@ -321,7 +307,23 @@ local function Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99RestedXP-Navigator:|r " .. msg)
 end
 
+local function NormalizeMarkerSettings(settings)
+    local ranges = {
+        worldMarkerScale = {0.70, 1.40},
+        worldMarkerGroundRingScale = {0.65, 1.50},
+        worldMarkerGroundRingAlpha = {0.15, 1.00},
+    }
+    for key, range in pairs(ranges) do
+        local value = tonumber(settings[key])
+        if not value or value ~= value then value = defaults[key] end
+        settings[key] = math.max(range[1], math.min(range[2], value))
+    end
+end
+
 local function CopyDefaults()
+    if Navigator.isNewInstallation == nil then
+        Navigator.isNewInstallation = type(RXPNavigatorDB) ~= "table" or next(RXPNavigatorDB) == nil
+    end
     RXPNavigatorDB = RXPNavigatorDB or {}
     -- One-time, non-destructive migration: users who already tuned the legacy
     -- shared marker/animation settings keep those values as the initial values
@@ -361,6 +363,7 @@ local function CopyDefaults()
     RXPNavigatorDB.hudDesign = nil
     -- v1.2.0-beta13: world/zone-map route distance labels are intentionally removed.
     RXPNavigatorDB.showRouteDistances = false
+    NormalizeMarkerSettings(RXPNavigatorDB)
     db = RXPNavigatorDB
 end
 
@@ -1531,7 +1534,7 @@ local function DetectTransportHint(element)
     if tag == "fly" then return "Flight" end
     if tag == "fp" then return "Flight Path" end
     if tag == "hs" or tag == "hsbatching" then return "Hearthstone" end
-    if tag == "home" or tag == "bindlocation" then return "Hearthstone" end
+    if tag == "home" or tag == "bindlocation" then return nil end
 
     local text = LowerClean(GetTargetInstruction(element))
     if text == "" then return nil end
@@ -1547,11 +1550,12 @@ local function DetectStepType(element)
     local model = Navigator.RXPData:Normalize(element)
     local tag = model and (model.semanticTag or model.tag) or Navigator.RXPData:GetTag(element)
     -- Prefer parsed RestedXP tags over natural-language heuristics.
+    if tag == "home" or tag == "bindlocation" then return "talk" end
     if tag == "accept" or tag == "daily" then return "accept" end
     if tag == "turnin" or tag == "dailyturnin" then return "turnin" end
     if tag == "collect" or tag == "collectmultiple" then return "loot" end
     if tag == "fly" or tag == "fp" or tag == "goto" or tag == "waypoint" or tag == "zone" or
-       tag == "hs" or tag == "hsbatching" or tag == "home" or tag == "bindlocation" then return "travel" end
+       tag == "hs" or tag == "hsbatching" then return "travel" end
 
     -- Some parsed tags (complete/target/unitscan/mob) describe mechanics rather
     -- than intent, so retain text matching as a compatibility fallback.
@@ -1568,24 +1572,10 @@ local function DetectStepType(element)
 end
 
 function Navigator.RXPData:GetActionLabel(stepType)
-    local locale = GetLocale and GetLocale() or "enUS"
-    local de = locale == "deDE"
-    local labels = de and {
-        accept = "ANNEHMEN",
-        turnin = "ABGEBEN",
-        kill = "TÖTEN",
-        loot = "SAMMELN",
-        talk = "SPRECHEN",
-        travel = "REISEN",
-    } or {
-        accept = "ACCEPT",
-        turnin = "TURN IN",
-        kill = "KILL",
-        loot = "LOOT",
-        talk = "TALK",
-        travel = "TRAVEL",
-    }
-    return labels[stepType]
+    local labels = {accept="Accept quest", turnin="Turn in quest", kill="Defeat enemies", loot="Collect / Loot", talk="Talk", travel="Travel"}
+    local source = labels[stepType]
+    return source and (_G.RXPNavigatorLocale and _G.RXPNavigatorLocale:Get(source) or source)
+
 end
 
 local function FindQuestID(element)
@@ -1792,7 +1782,7 @@ local function GetStepTypeDisplayName(stepType)
     local names = STEP_TYPE_NAMES[stepType]
     if type(names) ~= "table" then return stepType end
     local locale = GetLocale and GetLocale() or "enUS"
-    return names[locale] or names.enUS or stepType
+    return _G.RXPNavigatorLocale and _G.RXPNavigatorLocale:Get(names.enUS) or names[locale] or names.enUS or stepType
 end
 
 local function AddTargetMetadataToTooltip(element)
@@ -2005,12 +1995,22 @@ local function UpdateArrowSetAlongPath(arrows, parent, points, now, minLength, k
     end
 end
 
+-- Convert UI-sized artwork to canvas units. The canvas inherits both zoom
+-- and map-window scaling; compensate once, without changing route positions.
+local function GetWorldMapArtworkScale(parent)
+    local parentScale = parent and parent.GetEffectiveScale and parent:GetEffectiveScale()
+    local uiScale = UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale() or 1
+    if type(parentScale) ~= 'number' or parentScale ~= parentScale or parentScale <= 0 or parentScale == math.huge then return 1 end
+    if type(uiScale) ~= 'number' or uiScale ~= uiScale or uiScale <= 0 or uiScale == math.huge then uiScale = 1 end
+    return uiScale / parentScale
+end
+
 local function SetNativeWorldLine(line, parent, x1, y1, x2, y2, thickness)
     if not line then return end
     line:ClearAllPoints()
     line:SetStartPoint("CENTER", parent, x1, y1)
     line:SetEndPoint("CENTER", parent, x2, y2)
-    line:SetThickness(thickness)
+    line:SetThickness(thickness * GetWorldMapArtworkScale(parent))
     line:Show()
 end
 
@@ -2740,7 +2740,7 @@ local function UpdateMinimapRoute()
             if minimapEdgeDistanceText and distance then
                 minimapEdgeDistanceText:ClearAllPoints()
                 minimapEdgeDistanceText:SetPoint("CENTER", overlay, "CENTER", endX * 0.77, endY * 0.77)
-                if distance >= 1000 then minimapEdgeDistanceText:SetText(string.format("%.1f km", distance/1000)) else minimapEdgeDistanceText:SetText(string.format("%d yd", math.floor(distance+0.5))) end
+                if distance >= 1000 then minimapEdgeDistanceText:SetText(string.format("%.1f km", distance/1000)) else minimapEdgeDistanceText:SetText(string.format(Navigator.API:Localize("%d yd"), math.floor(distance+0.5))) end
                 minimapEdgeDistanceText:Show()
             end
         else
@@ -2787,7 +2787,7 @@ local function UpdateMinimapRoute()
     if db.showDistance and distance then
         local prefix = corpseMode and (L("corpse") .. "  ") or "RXP  "
         if distance >= 1000 then distanceText:SetText(prefix .. string.format("%.1f km", distance / 1000))
-        else distanceText:SetText(prefix .. string.format("%d yd", math.floor(distance + 0.5))) end
+        else distanceText:SetText(prefix .. string.format(Navigator.API:Localize("%d yd"), math.floor(distance + 0.5))) end
         distanceText:Show()
     else
         distanceText:Hide()
@@ -2901,7 +2901,8 @@ local function UpdateWorldMapRoute()
 
     local mainThickness = math.max(2.6, baseThickness * 0.74 * boost)
     local shadowThickness = mainThickness + math.max(1.6, 1.00 * boost)
-    local worldMarkerScale = math.max(0.42, math.min(0.72, 0.72 / (boost ^ 0.78)))
+    local artworkScale = GetWorldMapArtworkScale(worldMapOverlay)
+    local worldMarkerScale = math.max(0.42, math.min(0.72, 0.72 / (boost ^ 0.78))) * artworkScale
     local theme = GetTheme()
     local corpseMode = rawCurrent and rawCurrent.corpseNav
     local orr, org, orb = GetOutlineColor(theme)
@@ -2997,6 +2998,10 @@ local function UpdateWorldMapRoute()
             local arrows = (i == 1) and worldArrowTextures or GetWorldFutureArrowSet(i - 1)
             local segmentPath = Navigator.RouteSmoother:BuildSegmentPath(smoothPoints, sourcePoints, i)
             ConfigureRouteIconsForMode(arrows, corpseMode, arrowSize)
+            for _, arrow in ipairs(arrows) do
+                local aw, ah = arrow:GetSize()
+                arrow:SetSize(aw * artworkScale, ah * artworkScale)
+            end
             UpdateArrowSetAlongPath(arrows, worldArrowLayer or worldMapOverlay, segmentPath, GetTime and GetTime() or 0, i == 1 and 42 or 24, corpseMode, db.worldAnimationSpeed)
         end
     else
@@ -3086,17 +3091,17 @@ local function FormatHUDDistance(distance)
     if distance >= 1000 then
         return string.format("%.1f km", distance / 1000)
     end
-    return string.format("%d yd", math.floor(distance + 0.5))
+    return string.format(Navigator.API:Localize("%d yd"), math.floor(distance + 0.5))
 end
 
 local function FormatETA(seconds, approximate)
-    if type(seconds) ~= "number" or seconds < 0 or seconds ~= seconds then return "ETA --:--" end
+    if type(seconds) ~= "number" or seconds < 0 or seconds ~= seconds then return Navigator.API:Localize("ETA") .. " --:--" end
     seconds = math.min(seconds, 359999)
     local rounded = math.floor(seconds + 0.5)
     local h = math.floor(rounded / 3600)
     local m = math.floor((rounded % 3600) / 60)
     local s = rounded % 60
-    local prefix = approximate and "ETA ~" or "ETA "
+    local prefix = Navigator.API:Localize("ETA") .. (approximate and " ~" or " ")
     if h > 0 then
         return string.format("%s%d:%02d:%02d", prefix, h, m, s)
     end
@@ -3105,6 +3110,7 @@ end
 
 local function ApplyHUDPosition()
     if not hudArrowFrame or not db then return end
+    if Navigator.LayoutEditor then Navigator.LayoutEditor:Register('HUD',hudArrowFrame);return end
     hudArrowFrame:ClearAllPoints()
     local point = db.hudPoint or "TOP"
     local relativePoint = db.hudRelativePoint or point
@@ -3133,6 +3139,7 @@ end
 
 local function SaveHUDPosition()
     if not hudArrowFrame or not db then return end
+    if Navigator.LayoutEditor then Navigator.LayoutEditor:SavePosition('HUD',hudArrowFrame);return end
     local point, _, relativePoint, x, y = hudArrowFrame:GetPoint(1)
     db.hudPoint = point or "TOP"
     db.hudRelativePoint = relativePoint or db.hudPoint
@@ -3146,7 +3153,7 @@ local function ApplyHUDStyle()
     arrowScale = math.max(0.55, math.min(2.0, arrowScale))
     local textScale = tonumber(db.hudTextSize) or 1.0
     textScale = math.max(0.70, math.min(1.60, textScale))
-    hudArrowFrame:SetScale(1)
+    hudArrowFrame:SetScale(Navigator.LayoutEditor and Navigator.LayoutEditor:GetScale('HUD') or 1)
 
     local style = GetHUDArrowStyle()
     local texture = GetHUDArrowTexturePath()
@@ -3452,6 +3459,7 @@ local function GetHUDNavigationMetrics(elementOverride)
 end
 
 local function UpdateHUDArrow(dt)
+    if Navigator.LayoutEditor and Navigator.LayoutEditor:IsEditing() then HideHUDArrow();return end
     if not db or not db.enabled or not db.showHUDArrow then HideHUDArrow() return end
     if not hudArrowFrame then BuildHUDArrow() end
     ApplyHUDStyle()
@@ -3694,6 +3702,7 @@ local function RefreshAll()
     UpdateMinimapRoute()
     UpdateWorldMapRoute()
     UpdateHUDArrow(0)
+    if Navigator.LayoutEditor then Navigator.LayoutEditor:ApplyAll() end
     if Navigator.MinimapButton and Navigator.MinimapButton.Update then Navigator.MinimapButton:Update() end
     if Navigator.Options and Navigator.Options.Refresh then Navigator.Options:Refresh() end
 end
@@ -3748,6 +3757,7 @@ local function CopyProfileSettings(source, destination)
     for k in pairs(defaults) do
         if k ~= "profileUseGlobal" and k ~= "profileSelected" then
             local v = source[k]
+            if v == nil then v = defaults[k] end
             if type(v) ~= "table" then destination[k] = v end
         end
     end
@@ -3794,7 +3804,7 @@ end
 function Navigator.API:SaveProfile(name)
     self:EnsureProfiles()
     name = tostring(name or ""):gsub("^%s+",""):gsub("%s+$","")
-    if name == "" then return false, "Profile name is empty." end
+    if name == "" then return false, self:Localize("Profile name is empty.") end
     RXPNavigatorDB.profileStore[name] = SnapshotCurrentProfile()
     if RXPNavigatorDB.profileUseGlobal ~= false then
         RXPNavigatorDB.profileSelected = name
@@ -3804,30 +3814,69 @@ function Navigator.API:SaveProfile(name)
     return true
 end
 
+function Navigator.API:ProfileExists(name)
+    self:EnsureProfiles()
+    name=tostring(name or ""):gsub("^%s+",""):gsub("%s+$","")
+    return RXPNavigatorDB.profileStore[name] ~= nil
+end
+
+-- Validate before changing the live configuration or profile selection.
+function Navigator.API:SaveSetupProfile(values, name, useGlobal, overwrite)
+    self:EnsureProfiles()
+    name=tostring(name or ""):gsub("^%s+",""):gsub("%s+$","")
+    if name=="" then return false,self:Localize("Profile name is empty.") end
+    if name=="Default" and not useGlobal then return false,self:Localize("Choose a personal profile name other than Default.") end
+    if name:find("[%c|]") then return false,self:Localize("Profile name contains invalid characters.") end
+    local _,length=name:gsub("[%z\1-\127\194-\244]", "")
+    if length>32 then return false,self:Localize("Profile names may contain up to 32 characters.") end
+    if type(values)~="table" then return false,self:Localize("Could not create profile.") end
+    if self:ProfileExists(name) and not overwrite then return false,self:Localize("Profile already exists. Confirm replacement or choose another name.") end
+    local candidate=SnapshotCurrentProfile()
+    for key in pairs(defaults) do
+        if key~="profileUseGlobal" and key~="profileSelected" and values[key]~=nil then
+            if type(values[key])~=type(defaults[key]) then return false,self:Localize("Could not create profile.") end
+            candidate[key]=values[key]
+        end
+    end
+    NormalizeMarkerSettings(candidate)
+    if self:GetActiveProfileName()~=name then self:SaveActiveProfile() end
+    RXPNavigatorDB.profileStore[name]=candidate
+    RXPNavigatorDB.profileUseGlobal=useGlobal and true or false
+    if useGlobal then RXPNavigatorDB.profileSelected=name
+    else RXPNavigatorDB.profileCharacters[RXPNavigatorCharacterKey()]=name end
+    CopyProfileSettings(candidate,RXPNavigatorDB)
+    db=RXPNavigatorDB
+    return true,name
+end
+
 function Navigator.API:ApplyProfile(name)
     self:EnsureProfiles()
     local profile = RXPNavigatorDB.profileStore[name]
-    if type(profile) ~= "table" then return false, "Profile not found." end
+    if type(profile) ~= "table" then return false, self:Localize("Profile not found.") end
+    if Navigator.LayoutEditor then Navigator.LayoutEditor:Finish(false) end
     CopyProfileSettings(profile, RXPNavigatorDB)
+    NormalizeMarkerSettings(RXPNavigatorDB)
     db = RXPNavigatorDB
     if RXPNavigatorDB.profileUseGlobal ~= false then
         RXPNavigatorDB.profileSelected = name
     else
         RXPNavigatorDB.profileCharacters[RXPNavigatorCharacterKey()] = name
     end
+    if Navigator.LayoutEditor then Navigator.LayoutEditor:ApplyAll() end
     return true
 end
 
 function Navigator.API:DeleteProfile(name)
     self:EnsureProfiles()
-    if name == "Default" then return false, "The Default profile cannot be deleted." end
-    if not RXPNavigatorDB.profileStore[name] then return false, "Profile not found." end
+    if name == "Default" then return false, self:Localize("The Default profile cannot be deleted.") end
+    if not RXPNavigatorDB.profileStore[name] then return false, self:Localize("Profile not found.") end
+    local wasActive = self:GetActiveProfileName() == name
     RXPNavigatorDB.profileStore[name] = nil
     for key, selected in pairs(RXPNavigatorDB.profileCharacters) do
         if selected == name then RXPNavigatorDB.profileCharacters[key] = "Default" end
     end
     if RXPNavigatorDB.profileSelected == name then RXPNavigatorDB.profileSelected = "Default" end
-    self:ApplyProfile("Default")
+    if wasActive then self:ApplyProfile("Default") end
     return true
 end
 
@@ -3973,6 +4022,7 @@ function Navigator.API:LowerClean(value) return LowerClean(value) end
 function Navigator.API:GetWorldMapCanvas() return GetWorldMapCanvas() end
 function Navigator.API:RefreshAll() return RefreshAll() end
 function Navigator.API:Translate(key) return L(key) end
+function Navigator.API:Localize(text) return _G.RXPNavigatorLocale and _G.RXPNavigatorLocale:Get(text) or text end
 function Navigator.API:ApplyHUDPosition() return ApplyHUDPosition() end
 function Navigator.API:PrintMapDiagnostics(captureOnly) if Navigator.Diagnostics and Navigator.Diagnostics.PrintMapDiagnostics then return Navigator.Diagnostics:PrintMapDiagnostics(captureOnly) end end
 function Navigator.API:GenerateBugReport() if Navigator.Diagnostics and Navigator.Diagnostics.GenerateBugReport then return Navigator.Diagnostics:GenerateBugReport() end end
@@ -3984,34 +4034,36 @@ function Navigator.API:HasTheme(key) return THEMES[key] ~= nil end
 SLASH_RXPNAV1 = "/rxpnav"
 SlashCmdList.RXPNAV = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
-    if msg == "on" then db.enabled = true; RefreshAll(); Print("aktiviert")
-    elseif msg == "off" then db.enabled = false; HideMinimapRoute(); HideWorldRoute(); HideHUDArrow(); Print("deaktiviert")
-    elseif msg == "toggle" then db.enabled = not db.enabled; if db.enabled then RefreshAll() else HideMinimapRoute(); HideWorldRoute(); HideHUDArrow() end; Print("Navigator: " .. (db.enabled and "an" or "aus"))
-    elseif msg == "distance" then db.showDistance = not db.showDistance; RefreshAll(); Print("Distanzanzeige " .. (db.showDistance and "an" or "aus"))
-    elseif msg == "map" then db.showWorldMap = not db.showWorldMap; RefreshAll(); Print("Weltkarten-Linie " .. (db.showWorldMap and "an" or "aus"))
-    elseif msg == "options" or msg == "config" then if Navigator.Options and Navigator.Options.Open then Navigator.Options:Open() else Print("Options module not loaded") end
-    elseif msg == "animation" then db.animation = not db.animation; RefreshAll(); Print("Animation " .. (db.animation and "an" or "aus"))
-    elseif msg == "arrow" then db.showHUDArrow = not db.showHUDArrow; RefreshAll(); Print("Navigationspfeil " .. (db.showHUDArrow and "an" or "aus"))
-    elseif msg == "hudlock" then db.hudLocked = not db.hudLocked; RefreshAll(); Print("Pfeilposition gesperrt: " .. tostring(db.hudLocked))
-    elseif msg == "width thin" then db.lineStyle = "thin"; RefreshAll(); Print("Linienstärke: Dünn")
-    elseif msg == "width normal" then db.lineStyle = "normal"; RefreshAll(); Print("Linienstärke: Normal")
-    elseif msg == "width strong" then db.lineStyle = "strong"; RefreshAll(); Print("Linienstärke: Kräftig")
-    elseif msg:match("^goals%s+[0-6]$") then local n=tonumber(msg:match("(%d)$")); db.futureGoals=n; RefreshAll(); Print("Folgeziele: " .. (n==0 and "aus" or ("+"..n)))
+    if msg == "on" then db.enabled = true; RefreshAll(); Print(Navigator.API:Localize("Enabled"))
+    elseif msg == "off" then db.enabled = false; HideMinimapRoute(); HideWorldRoute(); HideHUDArrow(); Print(Navigator.API:Localize("Disabled"))
+    elseif msg == "toggle" then db.enabled = not db.enabled; if db.enabled then RefreshAll() else HideMinimapRoute(); HideWorldRoute(); HideHUDArrow() end; Print(Navigator.API:Localize("Navigation") .. ": " .. (db.enabled and Navigator.API:Localize("On") or Navigator.API:Localize("Off")))
+    elseif msg == "distance" then db.showDistance = not db.showDistance; RefreshAll(); Print(Navigator.API:Localize("Distance display") .. ": " .. (db.showDistance and Navigator.API:Localize("On") or Navigator.API:Localize("Off")))
+    elseif msg == "map" then db.showWorldMap = not db.showWorldMap; RefreshAll(); Print(Navigator.API:Localize("World-map line") .. ": " .. (db.showWorldMap and Navigator.API:Localize("On") or Navigator.API:Localize("Off")))
+    elseif msg == "setup" then if Navigator.SetupWizard then Navigator.SetupWizard:Open() end
+    elseif msg == "layout" then if Navigator.LayoutEditor then Navigator.LayoutEditor:Open() end
+    elseif msg == "options" or msg == "config" then if Navigator.Options and Navigator.Options.Open then Navigator.Options:Open() else Print(Navigator.API:Localize("Options module not loaded")) end
+    elseif msg == "animation" then db.animation = not db.animation; RefreshAll(); Print(Navigator.API:Localize("Animation") .. ": " .. (db.animation and Navigator.API:Localize("On") or Navigator.API:Localize("Off")))
+    elseif msg == "arrow" then db.showHUDArrow = not db.showHUDArrow; RefreshAll(); Print(Navigator.API:Localize("Navigation Arrow") .. ": " .. (db.showHUDArrow and Navigator.API:Localize("On") or Navigator.API:Localize("Off")))
+    elseif msg == "hudlock" then db.hudLocked = not db.hudLocked; RefreshAll(); Print(Navigator.API:Localize("Lock position") .. ": " .. Navigator.API:Localize(db.hudLocked and "On" or "Off"))
+    elseif msg == "width thin" then db.lineStyle = "thin"; RefreshAll(); Print(Navigator.API:Localize("Line width") .. ": " .. Navigator.API:Localize("Thin"))
+    elseif msg == "width normal" then db.lineStyle = "normal"; RefreshAll(); Print(Navigator.API:Localize("Line width") .. ": " .. Navigator.API:Localize("Normal"))
+    elseif msg == "width strong" then db.lineStyle = "strong"; RefreshAll(); Print(Navigator.API:Localize("Line width") .. ": " .. Navigator.API:Localize("Strong"))
+    elseif msg:match("^goals%s+[0-6]$") then local n=tonumber(msg:match("(%d)$")); db.futureGoals=n; RefreshAll(); Print(L("upcoming") .. ": " .. (n==0 and Navigator.API:Localize("Off") or ("+"..n)))
     elseif msg == "maptest" then if Navigator.Diagnostics then Navigator.Diagnostics:PrintMapDiagnostics(true); Navigator.API:ShowInspectorExport() end
     elseif msg == "bugreport" then if Navigator.Diagnostics then Navigator.Diagnostics:GenerateBugReport() end
-    elseif msg == "future 0" then db.futureGoals = 0; RefreshAll(); Print("Folgeziele: aus")
-    elseif msg == "future 1" then db.futureGoals = 1; RefreshAll(); Print("Folgeziele: +1")
-    elseif msg == "future 2" then db.futureGoals = 2; RefreshAll(); Print("Folgeziele: +2")
-    elseif msg == "future 3" then db.futureGoals = 3; RefreshAll(); Print("Folgeziele: +3")
-    elseif msg == "future 4" then db.futureGoals = 4; RefreshAll(); Print("Folgeziele: +4")
-    elseif msg == "future 5" then db.futureGoals = 5; RefreshAll(); Print("Folgeziele: +5")
-    elseif msg == "future 6" then db.futureGoals = 6; RefreshAll(); Print("Folgeziele: +6")
+    elseif msg == "future 0" then db.futureGoals = 0; RefreshAll(); Print(L("upcoming") .. ": " .. Navigator.API:Localize("Off"))
+    elseif msg == "future 1" then db.futureGoals = 1; RefreshAll(); Print(L("upcoming") .. ": " .. "+1")
+    elseif msg == "future 2" then db.futureGoals = 2; RefreshAll(); Print(L("upcoming") .. ": " .. "+2")
+    elseif msg == "future 3" then db.futureGoals = 3; RefreshAll(); Print(L("upcoming") .. ": " .. "+3")
+    elseif msg == "future 4" then db.futureGoals = 4; RefreshAll(); Print(L("upcoming") .. ": " .. "+4")
+    elseif msg == "future 5" then db.futureGoals = 5; RefreshAll(); Print(L("upcoming") .. ": " .. "+5")
+    elseif msg == "future 6" then db.futureGoals = 6; RefreshAll(); Print(L("upcoming") .. ": " .. "+6")
     elseif msg == "deathstatus" then if Navigator.Diagnostics then Navigator.Diagnostics:DeathStatus() end
     elseif msg == "npctest" then
         if Navigator.WorldMarkerVisual and Navigator.WorldMarkerVisual.StartNPCTest then
             Navigator.WorldMarkerVisual:StartNPCTest("target")
         else
-            Print("NPC-Testmodul nicht geladen.")
+            Print(Navigator.API:Localize("NPC test module not loaded."))
         end
     elseif msg == "npctest off" then
         if Navigator.WorldMarkerVisual and Navigator.WorldMarkerVisual.StopNPCTest then
@@ -4021,12 +4073,12 @@ SlashCmdList.RXPNAV = function(msg)
         if Navigator.WorldMarkerVisual and Navigator.WorldMarkerVisual.GetNPCTestStatus then
             local st = Navigator.WorldMarkerVisual:GetNPCTestStatus()
             if st.active then
-                Print(string.format("NPC-Test: %s | Nameplate: %s | Rest: %.0fs",
+                Print(string.format(Navigator.API:Localize("NPC TEST: ") .. "%s / " .. Navigator.API:Localize("Nameplate") .. ": %s / " .. Navigator.API:Localize("Remaining") .. ": %.0fs",
                     tostring(st.name or "?"),
-                    st.plateVisible and "sichtbar" or "nicht sichtbar",
+                    Navigator.API:Localize(st.plateVisible and "Visible" or "Not visible"),
                     tonumber(st.remaining) or 0))
             else
-                Print("NPC-Test: aus")
+                Print(Navigator.API:Localize("NPC test ended."))
             end
         end
     elseif msg == "guideinspect" then Navigator.Inspector.TargetedGuideInspect()
@@ -4037,10 +4089,10 @@ SlashCmdList.RXPNAV = function(msg)
     elseif msg == "inspectsave" then Navigator.Inspector.SafeInspectSave()
     elseif msg == "inspectcopy" then Navigator.Inspector.SafeInspectCopy()
     elseif msg == "reset" then
-        RXPNavigatorDB = nil; CopyDefaults(); RefreshAll(); Print("Einstellungen zurückgesetzt")
+        RXPNavigatorDB = nil; CopyDefaults(); RefreshAll(); Print(L("resetDone"))
     elseif msg == "" or msg == "status" then if Navigator.Diagnostics then Navigator.Diagnostics:Status() end
     else
-        Print("/rxpnav status | npctest | npctest status | npctest off | toggle | goals 0-6 | maptest | bugreport | deathstatus | options | arrow | hudlock | future 0|1|2|3|4|5|6 | animation | distance | map | on | off | reset")
+        Print("/rxpnav status | npctest | npctest status | npctest off | toggle | goals 0-6 | maptest | bugreport | deathstatus | options | setup | layout | arrow | hudlock | future 0|1|2|3|4|5|6 | animation | distance | map | on | off | reset")
     end
 end
 

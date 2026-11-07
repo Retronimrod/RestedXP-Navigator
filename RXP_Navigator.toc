@@ -1,9 +1,18 @@
 ## Interface: 16001
 ## Title: RestedXP-Navigator
-## Notes: Navigation companion for RXPGuides with minimap, world map and HUD guidance.
-## Notes-deDE: Navigations-Erweiterung für RXPGuides mit Minimap-, Weltkarten- und HUD-Navigation.
+## Notes: Navigation companion for RestedXP Guides on WoW Forever.
+## Notes-deDE: Navigations-Erweiterung für RestedXP Guides in WoW Forever.
+## Notes-frFR: Extension de navigation pour RestedXP Guides sur WoW Forever.
+## Notes-esES: Complemento de navegación para RestedXP Guides en WoW Forever.
+## Notes-esMX: Complemento de navegación para RestedXP Guides en WoW Forever.
+## Notes-itIT: Estensione di navigazione per RestedXP Guides in WoW Forever.
+## Notes-ptBR: Complemento de navegação para RestedXP Guides no WoW Forever.
+## Notes-ruRU: Навигационное дополнение для RestedXP Guides в WoW Forever.
+## Notes-koKR: WoW Forever의 RestedXP Guides용 내비게이션 도우미.
+## Notes-zhCN: WoW Forever的RestedXP Guides导航助手。
+## Notes-zhTW: WoW Forever的RestedXP Guides導航助手。
 ## Author: Fabian
-## Version: 1.6.11
+## Version: 1.7.0
 ## IconTexture: Interface\AddOns\RXP_Navigator\Media\RXPNav_IconRound.tga
 ## Category: Quests
 ## Category-deDE: Quests
@@ -20,6 +29,7 @@
 ## SavedVariables: RXPNavigatorDB, RXPNavigatorDebugDB
 ## X-License: All Rights Reserved
 
+Core\Locale.lua
 Core\RXP_Navigator.lua
 Core\RXPBridge.lua
 Core\TargetResolver.lua
@@ -35,6 +45,7 @@ Core\RouteSmoother.lua
 UI\Presentation.lua
 Debug\Inspector.lua
 Debug\Diagnostics.lua
+UI\Theme.lua
 UI\Options.lua
 UI\ControlCenter.lua
 UI\TooltipEngine.lua
@@ -44,3 +55,7 @@ Map\MapOverlays.lua
 Map\MinimapOverlays.lua
 Map\MinimapFuture.lua
 UI\MinimapButton.lua
+UI\GroupMarkers.lua
+Core\QuestAnnouncements.lua
+UI\LayoutEditor.lua
+UI\SetupWizard.lua
