@@ -1,6 +1,10 @@
 -- UTF-8 UI translations. Source keys remain English; game data is never translated.
 local dictionaries = {}
 dictionaries.enUS = {
+    ["Target area"] = "Target area",
+    ["Beacon"] = "Beacon",
+    ["Flight route"] = "Flight route",
+    ["Give feedback"] = "Give feedback",
     ["Map artwork now adapts to zoom."] = "Map artwork now adapts to zoom.",
     ["Minimal diamond"] = "Minimal diamond",
     ["Map pin"] = "Map pin",
@@ -363,6 +367,10 @@ dictionaries.enUS = {
     ["measuring..."] = "measuring...",
 }
 dictionaries.deDE = {
+    ["Target area"] = "Zielgebiet",
+    ["Beacon"] = "Leuchtstrahl",
+    ["Flight route"] = "Flugroute",
+    ["Give feedback"] = "Feedback geben",
     ["Map artwork now adapts to zoom."] = "Kartendarstellung passt sich jetzt dem Zoom an.",
     ["Minimal diamond"] = "Minimal-Diamant",
     ["Map pin"] = "Karten-Pin",
@@ -725,6 +733,10 @@ dictionaries.deDE = {
     ["measuring..."] = "wird ermittelt …",
 }
 dictionaries.frFR = {
+    ["Target area"] = "Zone de l’objectif",
+    ["Beacon"] = "Balise lumineuse",
+    ["Flight route"] = "Itinéraire de vol",
+    ["Give feedback"] = "Donner un avis",
     ["Map artwork now adapts to zoom."] = "Les éléments de carte s’adaptent au zoom.",
     ["Minimal diamond"] = "Losange minimaliste",
     ["Map pin"] = "Épingle de carte",
@@ -1087,6 +1099,10 @@ dictionaries.frFR = {
     ["measuring..."] = "calcul en cours…",
 }
 dictionaries.esES = {
+    ["Target area"] = "Zona del objetivo",
+    ["Beacon"] = "Baliza",
+    ["Flight route"] = "Ruta de vuelo",
+    ["Give feedback"] = "Enviar comentarios",
     ["Map artwork now adapts to zoom."] = "Los elementos del mapa se adaptan al zoom.",
     ["Minimal diamond"] = "Rombo minimalista",
     ["Map pin"] = "Pin de mapa",
@@ -1449,6 +1465,10 @@ dictionaries.esES = {
     ["measuring..."] = "calculando…",
 }
 dictionaries.itIT = {
+    ["Target area"] = "Area obiettivo",
+    ["Beacon"] = "Faro",
+    ["Flight route"] = "Rotta di volo",
+    ["Give feedback"] = "Invia feedback",
     ["Map artwork now adapts to zoom."] = "Gli elementi della mappa si adattano allo zoom.",
     ["Minimal diamond"] = "Diamante minimale",
     ["Map pin"] = "Segnaposto",
@@ -1811,6 +1831,10 @@ dictionaries.itIT = {
     ["measuring..."] = "calcolo…",
 }
 dictionaries.ptBR = {
+    ["Target area"] = "Área do objetivo",
+    ["Beacon"] = "Farol",
+    ["Flight route"] = "Rota de voo",
+    ["Give feedback"] = "Enviar feedback",
     ["Map artwork now adapts to zoom."] = "Os elementos do mapa se ajustam ao zoom.",
     ["Minimal diamond"] = "Losango minimalista",
     ["Map pin"] = "Pino de mapa",
@@ -2173,6 +2197,10 @@ dictionaries.ptBR = {
     ["measuring..."] = "calculando…",
 }
 dictionaries.ruRU = {
+    ["Target area"] = "Область цели",
+    ["Beacon"] = "Световой маяк",
+    ["Flight route"] = "Маршрут полёта",
+    ["Give feedback"] = "Оставить отзыв",
     ["Map artwork now adapts to zoom."] = "Элементы карты теперь учитывают масштаб.",
     ["Minimal diamond"] = "Простой ромб",
     ["Map pin"] = "Метка карты",
@@ -2535,6 +2563,10 @@ dictionaries.ruRU = {
     ["measuring..."] = "расчёт…",
 }
 dictionaries.koKR = {
+    ["Target area"] = "목표 지역",
+    ["Beacon"] = "빛 기둥",
+    ["Flight route"] = "비행 경로",
+    ["Give feedback"] = "의견 보내기",
     ["Map artwork now adapts to zoom."] = "지도 표시가 확대 수준에 맞게 조정됩니다.",
     ["Minimal diamond"] = "간결한 다이아몬드",
     ["Map pin"] = "지도 핀",
@@ -2897,6 +2929,10 @@ dictionaries.koKR = {
     ["measuring..."] = "계산 중...",
 }
 dictionaries.zhCN = {
+    ["Target area"] = "目标区域",
+    ["Beacon"] = "光柱",
+    ["Flight route"] = "飞行路线",
+    ["Give feedback"] = "提交反馈",
     ["Map artwork now adapts to zoom."] = "地图标记现在会随缩放调整。",
     ["Minimal diamond"] = "简约菱形",
     ["Map pin"] = "地图图钉",
@@ -3259,6 +3295,10 @@ dictionaries.zhCN = {
     ["measuring..."] = "正在计算…",
 }
 dictionaries.zhTW = {
+    ["Target area"] = "目標區域",
+    ["Beacon"] = "光柱",
+    ["Flight route"] = "飛行路線",
+    ["Give feedback"] = "提交意見",
     ["Map artwork now adapts to zoom."] = "地圖標記現在會隨縮放調整。",
     ["Minimal diamond"] = "簡約菱形",
     ["Map pin"] = "地圖圖釘",

@@ -109,6 +109,11 @@ local function Refresh()
         panel:Hide()
         return
     end
+    local header = _G.RXPNavigatorWorldMarkerHeader
+    if header and header:IsShown() and db.layoutGroupX == nil and db.layoutGroupY == nil then
+        panel:ClearAllPoints()
+        panel:SetPoint("TOP",header,"BOTTOM",0,-4)
+    end
     panel:Show()
 end
 

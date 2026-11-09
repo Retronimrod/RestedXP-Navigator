@@ -213,7 +213,7 @@ local function WorldMarkerPreview(parent)
     Text(preview,'GameFontDisableSmall','LIVE PREVIEW',12,-10,120):SetTextColor(unpack(MUTED))
     local visual=Navigator.WorldMarkerVisual
     local marker=visual:CreatePreview(preview)
-    preview.Refresh=function() visual:RefreshPreview(marker, 'OnMyWay') end
+    preview.Refresh=function() visual:RefreshPreview(marker) end
     refreshers[#refreshers+1]=preview
     return preview
 end
@@ -273,7 +273,7 @@ local function BuildPages()
     c2=Card(p,'HUD appearance','Color used by the primary navigation arrow.',4,-320,700,125)
     ColorButton(c2,'HUD arrow color',16,-60,function() return db.hudColorR or .08,db.hudColorG or .74,db.hudColorB or 1 end,function(r,g,b) db.hudColorR=r;db.hudColorG=g;db.hudColorB=b end)
 
-    p=NewPage('worldmarker','World Marker','Blizzard PingUI markers with an optional RestedXP-Navigator floor ring.')
+    p=NewPage('worldmarker','World Marker','Beacon')
     c=Card(p,'Preview','Uses the same artwork and settings as your personal world marker.',4,-70,700,235)
     WorldMarkerPreview(c)
     Toggle(c,'Enable world marker',335,-60,function() return db.showWorldMarkerNative == true end,function(v) db.showWorldMarkerNative=v end)
@@ -281,47 +281,10 @@ local function BuildPages()
     Toggle(c,'Show close-range beam',335,-140,function() return db.showWorldMarkerBeam ~= false end,function(v) db.showWorldMarkerBeam=v end)
     Toggle(c,'Hide duplicate Blizzard marker',335,-180,function() return db.worldMarkerHideBlizzard ~= false end,function(v) db.worldMarkerHideBlizzard=v end)
 
-    c2=Card(p,'Marker behavior','Size, beam distance and personal marker appearance.',4,-320,700,260)
+    c2=Card(p,'Marker behavior','Marker behavior',4,-320,700,162)
     Slider(c2,'Marker scale',16,-58,300,.70,1.40,.05,function() return db.worldMarkerScale or 1 end,function(v) db.worldMarkerScale=v end,function(v) return string.format('%d%%',v*100) end)
     Slider(c2,'Beam activation range',360,-58,300,20,150,5,function() return db.worldMarkerBeamDistance or 65 end,function(v) db.worldMarkerBeamDistance=v end,function(v) return string.format(T('%d yd'),v) end)
-    Text(c2,'GameFontNormal','Marker appearance',16,-116,300)
-    Dropdown(c2,16,-137,270,function()
-        local items={};for _,option in ipairs(Navigator.WorldMarkerVisual:GetStyleOptions()) do items[#items+1]=T(option.label) end;return items
-    end,function() return T(Navigator.WorldMarkerVisual:GetStyleLabel(db)) end,function(label)
-        for _,option in ipairs(Navigator.WorldMarkerVisual:GetStyleOptions()) do
-            if T(option.label)==label then Navigator.WorldMarkerVisual:SetStyle(db,option.id);break end
-        end
-    end)
-    Text(c2,'GameFontNormal','Raid symbol (visible only to you)',360,-116,300)
-    for index=1,8 do
-        local symbol=index
-        local button=CreateFrame('Button',nil,c2)
-        button:SetSize(30,30); button:SetPoint('TOPLEFT',360+(index-1)*38,-140)
-        local icon=button:CreateTexture(nil,'ARTWORK'); icon:SetAllPoints()
-        icon:SetTexture('Interface\\TargetingFrame\\UI-RaidTargetingIcon_'..symbol)
-        button:SetScript('OnClick',function() db.worldMarkerRaidSymbol=symbol;db.worldMarkerUseRaidSymbols=true;RefreshAll() end)
-        AddRefresh(button,function(self)
-            self:SetAlpha((tonumber(db.worldMarkerRaidSymbol) or 3)==symbol and 1 or .40)
-        end)
-    end
-    Toggle(c2,'Ground ring',16,-190,function() return db.showWorldMarkerGroundRing ~= false end,function(v) db.showWorldMarkerGroundRing=v end)
-    Slider(c2,'Ground ring size',360,-190,300,.65,1.50,.05,function() return db.worldMarkerGroundRingScale or 1 end,function(v) db.worldMarkerGroundRingScale=v end,function(v) return string.format('%d%%',v*100) end)
-
-    Toggle(c2,'Show target header',16,-222,function() return db.showWorldMarkerHeader ~= false end,function(v) db.showWorldMarkerHeader=v end)
-
-    p=NewPage('appearance','Appearance','Fine-tune marker colors and floor-ring presentation.')
-    c=Card(p,'Marker colors','By default the original Blizzard PingUI colors are used. Enable custom tinting only if you want your own palette.',4,-70,700,260)
-    Toggle(c,'Use custom marker colors',16,-58,function() return db.worldMarkerCustomColors == true end,function(v) db.worldMarkerCustomColors=v end)
-    ColorButton(c,'Interaction / NPC',16,-108,function() return db.markerAssistR,db.markerAssistG,db.markerAssistB end,function(r,g,b) db.markerAssistR=r;db.markerAssistG=g;db.markerAssistB=b end)
-    ColorButton(c,'Travel / movement',360,-108,function() return db.markerTravelR,db.markerTravelG,db.markerTravelB end,function(r,g,b) db.markerTravelR=r;db.markerTravelG=g;db.markerTravelB=b end)
-    ColorButton(c,'Combat / kill',16,-158,function() return db.markerAttackR,db.markerAttackG,db.markerAttackB end,function(r,g,b) db.markerAttackR=r;db.markerAttackG=g;db.markerAttackB=b end)
-    ColorButton(c,'Default / other',360,-158,function() return db.markerDefaultR,db.markerDefaultG,db.markerDefaultB end,function(r,g,b) db.markerDefaultR=r;db.markerDefaultG=g;db.markerDefaultB=b end)
-
-    c2=Card(p,'Ground ring','The floor ring is the only custom artwork used by the world marker.',4,-345,700,205)
-    Toggle(c2,'Match marker color',16,-58,function() return db.worldMarkerGroundRingUseMarkerColor ~= false end,function(v) db.worldMarkerGroundRingUseMarkerColor=v end)
-    ColorButton(c2,'Custom ring color',360,-58,function() return db.worldMarkerGroundRingR,db.worldMarkerGroundRingG,db.worldMarkerGroundRingB end,function(r,g,b) db.worldMarkerGroundRingR=r;db.worldMarkerGroundRingG=g;db.worldMarkerGroundRingB=b end)
-    Slider(c2,'Ring opacity',16,-125,300,.15,1,.05,function() return db.worldMarkerGroundRingAlpha or .72 end,function(v) db.worldMarkerGroundRingAlpha=v end,function(v) return string.format('%d%%',v*100) end)
-    Slider(c2,'Ring size',360,-125,300,.65,1.50,.05,function() return db.worldMarkerGroundRingScale or 1 end,function(v) db.worldMarkerGroundRingScale=v end,function(v) return string.format('%d%%',v*100) end)
+    Toggle(c2,'Show target header',16,-120,function() return db.showWorldMarkerHeader ~= false end,function(v) db.showWorldMarkerHeader=v end)
 
     p=NewPage('maps','Maps','Minimap and world-map route presentation.')
     c=Card(p,'Minimap','Current route and upcoming targets.',4,-70,700,205)
@@ -366,6 +329,15 @@ local function BuildPages()
 
     Text(c,'GameFontHighlightSmall','Built as a focused navigation layer: HUD guidance, minimap/world-map routes, Blizzard-style in-world markers and corpse-run navigation.',16,-168,650):SetTextColor(.82,.85,.90)
 
+    Button(c,'Give feedback',16,-197,175,function()
+        local url = Navigator.FeedbackFormURL
+        if type(url) ~= 'string' or not url:match('^https://[^%s]+$')
+            or url:lower():find('/api/webhooks/',1,true) then
+            url = 'https://www.curseforge.com/wow/addons/restedxp-navigator/comments'
+        end
+        OpenExternalURL(url)
+    end)
+
     c2=Card(p,"What's New",'Recent changes in the current development line.',4,-320,700,250)
 
     local scroll=CreateFrame('ScrollFrame',nil,c2,'UIPanelScrollFrameTemplate')
@@ -377,7 +349,7 @@ local function BuildPages()
     scroll:SetScrollChild(scrollChild)
 
     local whats=Text(scrollChild,'GameFontHighlight',
-('v1.7.0\n• '..T('Map artwork now adapts to zoom.')..'\n\nv1.7.0-beta.16\n• '..T('Setup profiles and additional marker styles.')..'\n\nv1.7.0-beta.15\n• '..T('New setup wizard and unified menus.')..'\n\nv1.7.0-beta.14\n• '..T('Move and scale your HUD in edit mode.')..'\n\nv1.7.0-beta.13\n• '..T('Quest progress and completion can be announced to your group.')..'\n\nv1.7.0-beta.12\n• '..T('Client language is selected automatically.')..'\n• '..T('Settings, tooltips and dialogs are now translated.')..
+('v1.7.2\n• '..T('Beacon')..'\n\nv1.7.1\n• '..T('Give feedback')..'\n\nv1.7.0\n• '..T('Map artwork now adapts to zoom.')..'\n\nv1.7.0-beta.16\n• '..T('Setup profiles and additional marker styles.')..'\n\nv1.7.0-beta.15\n• '..T('New setup wizard and unified menus.')..'\n\nv1.7.0-beta.14\n• '..T('Move and scale your HUD in edit mode.')..'\n\nv1.7.0-beta.13\n• '..T('Quest progress and completion can be announced to your group.')..'\n\nv1.7.0-beta.12\n• '..T('Client language is selected automatically.')..'\n• '..T('Settings, tooltips and dialogs are now translated.')..
         '\n\nv1.7.0-beta.11\n• '..T('Fixed hearthstone binding and marker settings.')..
         '\n\nv1.7.0-beta.10\n• '..T('Restored the beta.2 baseline with native-icon attachment.')),0,0,610)
     whats:SetJustifyH('LEFT')
@@ -435,7 +407,7 @@ local function BuildWindow()
 
     local nav={
         {'general','General'},{'profiles','Profiles'},{'navigation','Navigation'},
-        {'worldmarker','World Marker'},{'appearance','Appearance'},{'maps','Maps'},
+        {'worldmarker','World Marker'},{'maps','Maps'},
         {'corpse','Corpse Run'},{'advanced','Advanced'},{'info','Info'}
     }
     for i,v in ipairs(nav) do SidebarButton(f.sidebar,v[1],v[2],i) end

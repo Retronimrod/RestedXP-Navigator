@@ -1,0 +1,4 @@
+# Flight preview test
+Hover a reachable, direct destination on the classic flight-master map. The test covers the directed legs Orgrimmar ↔ Crossroads and Crossroads ↔ Ratchet. The curve is projected onto the flight map using the positions of the two taxi buttons. The beta does not collect player movement or show unsupported connections.
+
+The reference table is a small subset of Polestar's generated FlightPaths.lua (Classic Era 1.15.9.70576, commit e978e136279cf075eff34718f3ad5fd3dacba623). It is included for a compatibility test and is separately identified in Map/FlightReference.lua. Its source is available at the URL in that file. The flight preview code is independently implemented. Before a public release, validate the reference paths in Forever and settle redistribution terms for the data.

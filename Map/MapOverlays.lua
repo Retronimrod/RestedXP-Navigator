@@ -436,6 +436,7 @@ function Navigator.MapOverlays:Render(displayMapID, parent, width, height, boost
         end
     end
 
+    local artworkScale = API:GetWorldMapArtworkScale(parent)
     local searchThickness = math.max(2.0, 2.1 * (boost or 1))
     local patrolThickness = math.max(1.8, 2.0 * (boost or 1))
     local farmThickness = math.max(1.8, 2.1 * (boost or 1))
@@ -457,9 +458,11 @@ function Navigator.MapOverlays:Render(displayMapID, parent, width, height, boost
                 local pin = self:GetObjectPin(objectPinIndex, parent)
                 local active = (i == nearestIndex)
                 -- Visual marker is intentionally much smaller than its mouse hit area.
-                pin:SetSize(20, 20)
-                pin.icon:SetSize(active and 10 or 7, active and 10 or 7)
-                pin.ring:SetSize(active and 14 or 10, active and 14 or 10)
+                pin:SetSize(20 * artworkScale, 20 * artworkScale)
+                local iconSize = (active and 10 or 7) * artworkScale
+                pin.icon:SetSize(iconSize, iconSize)
+                local ringSize = (active and 14 or 10) * artworkScale
+                pin.ring:SetSize(ringSize, ringSize)
                 pin.icon:SetTexture((overlayData.objectDescriptor and overlayData.objectDescriptor.icon) or "Interface\\Icons\\INV_Misc_QuestionMark")
                 pin.icon:SetVertexColor(1, 1, 1, active and 0.95 or 0.68)
                 if active then pin.ring:SetVertexColor(1.00, 0.72, 0.12, 0.88)
@@ -505,7 +508,7 @@ function Navigator.MapOverlays:Render(displayMapID, parent, width, height, boost
                 local dot = self:GetPoolTexture("farmNode", farmNodeIndex, parent, "ARTWORK", 3)
                 dot:SetTexture("Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_TargetCenter.tga")
                 dot:SetVertexColor(math.min(1, (fr or 0.42) + 0.30), math.min(1, (fg or 1.00)), math.min(1, (fb or 0.70) + 0.16), math.min(1.0, (db.farmAlpha or 0.86) + 0.08))
-                dot:SetSize(7, 7)
+                dot:SetSize(7 * artworkScale, 7 * artworkScale)
                 dot:ClearAllPoints()
                 dot:SetPoint("CENTER", parent, "CENTER", point.x, point.y)
                 dot:Show()

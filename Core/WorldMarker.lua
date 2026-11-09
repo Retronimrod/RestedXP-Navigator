@@ -5,14 +5,6 @@ local API = Navigator.API
 Navigator.WorldMarker = Navigator.WorldMarker or {}
 local WorldMarker = Navigator.WorldMarker
 
--- These are local textures, not server-side raid markers or unit markings.
-function WorldMarker:GetLocalRaidSymbolIndex(db)
-    if not db or db.worldMarkerUseRaidSymbols ~= true then return nil end
-    local index = tonumber(db.worldMarkerRaidSymbol) or 3
-    if index ~= index or index < 1 or index > 8 then return 3 end
-    return math.floor(index)
-end
-
 local UPDATE_INTERVAL = 0.25
 local MISSING_GRACE = 1.0
 local CVAR = "showInGameNavigation"
@@ -28,6 +20,7 @@ local BEAM_SHOW_DISTANCE_YARDS = 65
 
 local elapsed = 0
 local missingSince
+local waypointReason = "not checked"
 local owned = false
 local lastOwnedKey
 local blockedTargetKey
@@ -58,6 +51,7 @@ local PING_TEXTURE_KITS = {
     turnin = "Assist",
     vendor = "Assist",
     train = "Assist",
+    dungeon = "OnMyWay",
     hearth = "Assist",
 
     travel = "OnMyWay",
@@ -81,6 +75,16 @@ local function DetectIconStepType(target, title, instruction)
     local stepType = API.DetectStepType and API:DetectStepType(element) or nil
     local text = string.lower(tostring(title or "") .. " " .. tostring(instruction or ""))
 
+    local guideAction = tostring(instruction or ""):lower()
+    if guideAction:match("^gebt die quest .+ ab[%.!]?$")
+        or guideAction:match("^gib die quest .+ ab[%.!]?$")
+        or guideAction:match("^abgeben%s") then return "turnin" end
+    if guideAction:match("^nehmt die quest .+ an[%.!]?$")
+        or guideAction:match("^nimm die quest .+ an[%.!]?$")
+        or guideAction:match("^annehmen%s") then return "accept" end
+
+    if stepType == "accept" or stepType == "turnin" then return stepType end
+
     -- Explicit semantic instructions have priority over a generic "talk" step.
     if text:find("turn in", 1, true) or text:find("turnin", 1, true)
        or text:find("hand in", 1, true) or text:find("abgeben", 1, true)
@@ -94,9 +98,16 @@ local function DetectIconStepType(target, title, instruction)
     if text:find("vendor", 1, true) or text:find("vendor trash", 1, true)
        or text:find("buy ", 1, true) or text:find("purchase", 1, true)
        or text:find("sell ", 1, true) or text:find("repair", 1, true)
-       or text:find("kaufe", 1, true) or text:find("verkaufe", 1, true) then
+       or text:find("kaufe", 1, true) or text:find("verkaufe", 1, true) or guideAction:match("^handelt mit ")
+       or guideAction:match("^handle mit ") then
         return "vendor"
     end
+    if stepType == "train" or guideAction:match("^train ") or guideAction:match("^trainiert ")
+       or guideAction:match("^trainiere ") or text:find("class trainer", 1, true)
+       or text:find("klassenlehrer", 1, true) then return "train" end
+    if stepType == "dungeon" or guideAction:match("^enter .*dungeon")
+       or guideAction:match("^betretet .*dungeon") or guideAction:match("^betritt .*dungeon")
+       or guideAction:match("^betretet .*instanz") or guideAction:match("^betritt .*instanz") then return "dungeon" end
     if text:find("innkeeper", 1, true) or text:find("hearthstone", 1, true)
        or text:find("set hearth", 1, true) or text:find("bind ", 1, true)
        or text:find("gasthaus", 1, true) or text:find("ruhestein", 1, true) then
@@ -123,8 +134,7 @@ local function DetectIconStepType(target, title, instruction)
         return "loot"
     end
 
-    if stepType == "accept" or stepType == "turnin" or stepType == "kill"
-       or stepType == "loot" or stepType == "travel" then
+    if stepType == "kill" or stepType == "loot" then
         return stepType
     end
     if stepType == "talk" then return "talk" end
@@ -140,6 +150,7 @@ end
 local function ResolveHeaderIconKey(target, title, instruction)
     local element = target and target.element or nil
     if not element then return "default" end
+    if element.corpseNav then return "corpse" end
 
     local stepType = DetectIconStepType(target, title, instruction)
     local transport = API.GetTransportHint and API:GetTransportHint(element) or nil
@@ -188,45 +199,31 @@ local function CreateHeader()
     frame:SetFrameLevel(40)
     frame:EnableMouse(false)
 
-    local bg = frame:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0.015, 0.025, 0.035, 0.88)
-
-    local top = frame:CreateTexture(nil, "BORDER")
-    top:SetPoint("TOPLEFT", 0, 0)
-    top:SetPoint("TOPRIGHT", 0, 0)
-    top:SetHeight(1)
-    top:SetColorTexture(0.12, 0.70, 0.95, 0.85)
-
-    local bottom = frame:CreateTexture(nil, "BORDER")
-    bottom:SetPoint("BOTTOMLEFT", 0, 0)
-    bottom:SetPoint("BOTTOMRIGHT", 0, 0)
-    bottom:SetHeight(1)
-    bottom:SetColorTexture(0.12, 0.70, 0.95, 0.45)
-
-    local iconBG = frame:CreateTexture(nil, "ARTWORK")
-    iconBG:SetSize(20, 20)
-    iconBG:SetPoint("LEFT", frame, "LEFT", 10, 0)
-    iconBG:SetColorTexture(0.07, 0.11, 0.16, 0.95)
+    local visual = Navigator.WorldMarkerVisual
+    if visual and visual.ApplyPanelArtwork then
+        visual:ApplyPanelArtwork(frame,"Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_HeaderPanel.tga")
+    else
+        local bg = frame:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints()
+        bg:SetColorTexture(.022,.017,.012,.8)
+    end
 
     headerIcon = frame:CreateTexture(nil, "OVERLAY")
-    headerIcon:SetSize(16, 16)
-    headerIcon:SetPoint("CENTER", iconBG, "CENTER", 0, 0)
-    headerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    headerIcon:SetSize(22, 22)
+    headerIcon:SetTexCoord(0, 1, 0, 1)
 
     headerTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    headerTitle:SetPoint("TOPLEFT", frame, "TOPLEFT", 36, -7)
-    headerTitle:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -76, -7)
-    headerTitle:SetJustifyH("LEFT")
-    headerTitle:SetWordWrap(false)
+    headerTitle:SetJustifyH("CENTER")
+    headerTitle:SetWordWrap(true)
 
     headerDistance = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    headerDistance:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -7)
-    headerDistance:SetJustifyH("RIGHT")
-    headerDistance:SetTextColor(0.30, 0.85, 1.00, 1)
+    headerDistance:SetJustifyH("CENTER")
+    headerDistance:SetWordWrap(true)
+    headerDistance:SetTextColor(0.92, 0.82, 0.62, 1)
 
     headerETA = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    headerETA:SetPoint("TOPLEFT", headerTitle, "BOTTOMLEFT", 0, -3)
+    headerETA:SetJustifyH("CENTER")
+    headerETA:SetWordWrap(true)
     headerETA:SetTextColor(0.72, 0.75, 0.78, 1)
 
     frame:Hide()
@@ -309,6 +306,45 @@ local function CalculateDynamicETA(targetKey, distance)
     return nil
 end
 
+local function LayoutHeader(frame, title, objective, distance)
+    local padding, gap, iconWidth = 12, 9, 22
+    local maxWidth = math.max(140, math.min(560, UIParent:GetWidth() * 0.85))
+    if frame.layoutTitle == title and frame.layoutObjective == objective
+        and frame.layoutDistance == distance and frame.layoutMaxWidth == maxWidth then return end
+    frame.layoutTitle, frame.layoutObjective = title, objective
+    frame.layoutDistance, frame.layoutMaxWidth = distance, maxWidth
+
+    headerTitle:SetText(title)
+    headerETA:SetText(objective)
+    headerDistance:SetText(distance)
+    headerETA:SetShown(objective ~= "")
+    headerDistance:SetShown(distance ~= "")
+
+    local distanceWidth = 0
+    if distance ~= "" then
+        distanceWidth = math.ceil(math.min(maxWidth * 0.25, headerDistance:GetUnboundedStringWidth()))
+        headerDistance:SetWidth(distanceWidth)
+    end
+    local sideWidth = iconWidth + gap + (distanceWidth > 0 and distanceWidth + gap or 0)
+    local textWidth = math.ceil(math.min(maxWidth - 2 * padding - sideWidth,
+        math.max(1, headerTitle:GetUnboundedStringWidth(), headerETA:GetUnboundedStringWidth())))
+    headerTitle:SetWidth(textWidth)
+    headerETA:SetWidth(textWidth)
+
+    local titleHeight = math.ceil(headerTitle:GetStringHeight())
+    local textHeight = titleHeight + (objective ~= "" and 3 + math.ceil(headerETA:GetStringHeight()) or 0)
+    local distanceHeight = distance ~= "" and math.ceil(headerDistance:GetStringHeight()) or 0
+    local contentWidth = sideWidth + textWidth
+    local left = -contentWidth / 2
+    frame:SetSize(math.max(92, contentWidth + 2 * padding),
+        math.max(44, 16 + math.max(22, textHeight, distanceHeight)))
+
+    headerIcon:SetPoint("LEFT", frame, "CENTER", left, 0)
+    headerTitle:SetPoint("TOPLEFT", frame, "CENTER", left + iconWidth + gap, textHeight / 2)
+    headerETA:SetPoint("TOP", headerTitle, "BOTTOM", 0, -3)
+    headerDistance:SetPoint("RIGHT", frame, "CENTER", contentWidth / 2, 0)
+end
+
 local function UpdateHeader(target)
     if Navigator.LayoutEditor and Navigator.LayoutEditor:IsEditing() then HideHeader();return end
     local db = API:GetDB()
@@ -334,11 +370,31 @@ local function UpdateHeader(target)
         distance = d
     end
 
-    headerTitle:SetText(TruncateTitle(title, 42))
+    local actionTitle, objective, area, actionTexture = title, '', false, nil
+    local action = ResolveHeaderIconKey(target, title, instruction)
+    if Navigator.WorldMarkerVisual then
+        local travelPlan = target.travelPlan
+        local route = travelPlan and travelPlan.route
+        local travelTitle = route and Navigator.Presentation
+            and Navigator.Presentation:FormatTravelTitle(travelPlan)
+        actionTitle, objective, area, actionTexture = Navigator.WorldMarkerVisual:GetObjectiveContent({
+            activeTargetName = title,
+            activeInstruction = instruction,
+            activeObjective = resolved and resolved.objective,
+            activeItemName = resolved and resolved.itemName,
+            activeGuideAction = API:GetPinpointInstruction(target.element),
+            activeTargetType = resolved and (resolved.genericType or resolved.type),
+            activeIconKey = action,
+            activeTransport = route and route.kind or resolved and resolved.transport,
+            activeTravelTitle = travelTitle,
+        })
+    end
+    local conversation, note = API:GetConversationHeader(target.element, action, instruction)
+    if conversation then actionTitle = conversation end
+    if note then objective = objective ~= '' and (objective .. "\n" .. note) or note end
     if headerIcon then
-        local raidSymbol = WorldMarker:GetLocalRaidSymbolIndex(db)
-        if raidSymbol then
-            headerIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. raidSymbol)
+        if actionTexture then
+            headerIcon:SetTexture(actionTexture)
             headerIcon:SetTexCoord(0, 1, 0, 1)
         else
             local kit = ResolveHeaderPingKit(target, title, instruction)
@@ -349,24 +405,17 @@ local function UpdateHeader(target)
         end
     end
 
+    local distanceText = ""
     if type(distance) == "number" then
         if API.FormatHUDDistance then
-            headerDistance:SetText(API:FormatHUDDistance(distance))
+            distanceText = API:FormatHUDDistance(distance)
         else
-            headerDistance:SetText(string.format(API:Localize("%d yd"), math.floor(distance + 0.5)))
+            distanceText = string.format(API:Localize("%d yd"), math.floor(distance + 0.5))
         end
-
-        local dynamicETA = CalculateDynamicETA(target.key, distance)
-        if dynamicETA then
-            headerETA:SetText(FormatHeaderETA(dynamicETA))
-        else
-            headerETA:SetText(API:Localize("measuring..."))
-        end
-    else
-        headerDistance:SetText("")
-        headerETA:SetText("")
+        if area then distanceText = API:Localize("Target area") .. "\n" .. distanceText end
     end
 
+    LayoutHeader(frame, actionTitle, objective, distanceText)
     frame:Show()
 end
 
@@ -490,7 +539,8 @@ local function RestorePreviousState()
     if not owned and not previousState then return end
 
     local currentKey = GetCurrentWaypointKey()
-    if owned and lastOwnedKey and currentKey == lastOwnedKey then
+    local stillOwnsPoint = owned and lastOwnedKey and currentKey == lastOwnedKey
+    if stillOwnsPoint then
         if previousState and previousState.waypoint then
             local point = MakePoint(previousState.waypoint)
             if point and C_Map and type(C_Map.SetUserWaypoint) == "function" then
@@ -501,13 +551,15 @@ local function RestorePreviousState()
         end
     end
 
-    if previousState and previousState.questID and C_SuperTrack and type(C_SuperTrack.SetSuperTrackedQuestID) == "function" then
-        pcall(C_SuperTrack.SetSuperTrackedQuestID, previousState.questID)
-    elseif previousState and previousState.superUserWaypoint
-       and C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
-        pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
-    elseif owned and C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
-        pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, false)
+    if stillOwnsPoint then
+        if previousState and previousState.questID and C_SuperTrack and type(C_SuperTrack.SetSuperTrackedQuestID) == "function" then
+            pcall(C_SuperTrack.SetSuperTrackedQuestID, previousState.questID)
+        elseif previousState and previousState.superUserWaypoint
+           and C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
+            pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
+        elseif owned and C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
+            pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, false)
+        end
     end
 
     owned = false
@@ -557,7 +609,7 @@ local function GetDesiredElement()
     if Navigator.TravelPlanner and type(Navigator.TravelPlanner.GetPlan) == "function" then
         local ok, travelPlan = pcall(Navigator.TravelPlanner.GetPlan, Navigator.TravelPlanner, element)
         if ok and travelPlan and travelPlan.mode == "network" and travelPlan.approachElement then
-            element = travelPlan.approachElement
+            return travelPlan.approachElement, travelPlan
         end
     end
 
@@ -565,21 +617,22 @@ local function GetDesiredElement()
 end
 
 local function ResolveDesiredTarget()
-    local element = GetDesiredElement()
-    if not element then return nil end
+    local element, travelPlan = GetDesiredElement()
+    if not element then return nil, "no active guide target" end
 
     local mapID, x, y = API:GetTargetMap(element)
     mapID, x, y = tonumber(mapID), tonumber(x), tonumber(y)
-    if not mapID or not x or not y then return nil end
-    if x < 0 or x > 1 or y < 0 or y > 1 then return nil end
+    if not mapID or not x or not y then return nil, "invalid target coordinates" end
+    if x < 0 or x > 1 or y < 0 or y > 1 then return nil, "invalid target coordinates" end
 
     if C_Map and type(C_Map.CanSetUserWaypointOnMap) == "function" then
         local ok, allowed = pcall(C_Map.CanSetUserWaypointOnMap, mapID)
-        if not ok or not allowed then return nil end
+        if not ok or not allowed then return nil, "map rejects waypoints (" .. mapID .. ")" end
     end
 
     return {
         element = element,
+        travelPlan = travelPlan,
         mapID = mapID,
         x = x,
         y = y,
@@ -617,17 +670,17 @@ end
 
 local function SetDesiredTarget(target)
     if not target or not target.key then return false end
-    if blockedTargetKey and blockedTargetKey == target.key then return false end
+    if blockedTargetKey and blockedTargetKey == target.key then return false, "tracking released for current target" end
     if blockedTargetKey and blockedTargetKey ~= target.key then blockedTargetKey = nil end
 
     if owned then
         local currentKey = GetCurrentWaypointKey()
         if currentKey and lastOwnedKey and currentKey ~= lastOwnedKey then
-            RelinquishToExternalWaypoint(target.key)
-            return false
+            RelinquishToExternalWaypoint(not currentKey and target.key or nil)
+            return false, "waypoint replaced or removed"
         end
     elseif HasUnknownSuperTrack() then
-        return false
+        return false, "another target is tracked"
     end
 
     if owned and lastOwnedKey == target.key then
@@ -635,7 +688,7 @@ local function SetDesiredTarget(target)
             local ok, tracking = pcall(C_SuperTrack.IsSuperTrackingUserWaypoint)
             if ok and tracking == false then
                 RelinquishToExternalWaypoint(target.key)
-                return false
+                return false, "user waypoint tracking stopped"
             end
         end
         -- Keep the selected engine anchor alive without reselecting it.
@@ -646,7 +699,7 @@ local function SetDesiredTarget(target)
 
     local point = MakePoint(target)
     if not point or not (C_Map and type(C_Map.SetUserWaypoint) == "function") then
-        return false
+        return false, "waypoint API unavailable"
     end
 
     EnableNativeNavigationCVar()
@@ -654,18 +707,18 @@ local function SetDesiredTarget(target)
     local okSet, wasSet = pcall(C_Map.SetUserWaypoint, point)
     if not okSet or wasSet == false then
         if not owned then previousState = nil end
-        return false
+        return false, "SetUserWaypoint failed"
     end
 
     if C_SuperTrack and type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
         local ok = pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
         if not ok then
             if not owned then previousState = nil end
-            return false
+            return false, "supertracking failed"
         end
     else
         if not owned then previousState = nil end
-        return false
+        return false, "supertracking API unavailable"
     end
 
     owned = true
@@ -685,8 +738,9 @@ function WorldMarker:RefreshNow()
 
     EnableNativeNavigationCVar()
 
-    local target = ResolveDesiredTarget()
+    local target, reason = ResolveDesiredTarget()
     if not target then
+        waypointReason = reason
         if not missingSince then missingSince = GetTime and GetTime() or 0 end
         local now = GetTime and GetTime() or 0
         if now - missingSince >= MISSING_GRACE then RestorePreviousState() end
@@ -701,7 +755,8 @@ function WorldMarker:RefreshNow()
     -- advances, keep the previous native marker alive briefly so the player can
     -- actually arrive at it. The Navigator header/HUD can already show the new
     -- destination during this handover.
-    if owned and activeTarget and target.key ~= activeTarget.key then
+    if owned and activeTarget and target.key ~= activeTarget.key
+        and not target.element.corpseNav and not activeTarget.element.corpseNav then
         pendingTarget = target
         if not arrivalHoldStartedAt then
             arrivalHoldStartedAt = now
@@ -723,7 +778,8 @@ function WorldMarker:RefreshNow()
         arrivalMinDistance = nil
     end
 
-    local active = SetDesiredTarget(target)
+    local active, reason = SetDesiredTarget(target)
+    waypointReason = active and "tracking" or (reason or "target unavailable")
     if active then
         activeTarget = target
         UpdateHeader(target)
@@ -789,9 +845,19 @@ end
 function WorldMarker:GetStatus()
     local db = API:GetDB()
     local resolved = self:GetActiveResolvedTarget()
+    local plan = activeTarget and activeTarget.travelPlan
+    local route = plan and plan.route
+    local travelTitle = route and Navigator.Presentation
+        and Navigator.Presentation:FormatTravelTitle(plan)
+    local iconKey = self:GetActiveIconKey()
+    local conversation, conversationNote
+    if iconKey == "flight" and resolved then
+        conversation, conversationNote = API:GetConversationHeader(resolved.element, iconKey, resolved.instruction)
+    end
     return {
         enabled = db and db.showWorldMarkerNative == true or false,
         owned = owned,
+        waypointReason = waypointReason,
         lastOwnedKey = lastOwnedKey,
         blockedTargetKey = blockedTargetKey,
         activeTargetKey = activeTarget and activeTarget.key or nil,
@@ -800,12 +866,19 @@ function WorldMarker:GetStatus()
         arrivalRadiusYards = ARRIVAL_RADIUS_YARDS,
         beamShowDistanceYards = tonumber(db and db.worldMarkerBeamDistance) or BEAM_SHOW_DISTANCE_YARDS,
         activeTargetDistance = self:GetActiveTargetDistance(),
-        activeIconKey = self:GetActiveIconKey(),
+        activeIconKey = iconKey,
+        activeConversationTitle = conversation,
+        activeConversationNote = conversationNote,
+        activeTravelTitle = travelTitle,
+        activeTransport = route and route.kind or activeTarget and API.GetTransportHint and API:GetTransportHint(activeTarget.element),
         activePingTextureKit = self:GetActivePingTextureKit(),
-        activeTargetName = resolved and resolved.targetName or nil,
+        activeTargetName = travelTitle or (resolved and (resolved.targetName or resolved.title or resolved.instruction)) or nil,
         activeQuestID = resolved and resolved.questID or nil,
         activeTargetType = resolved and (resolved.genericType or resolved.type) or nil,
         activeInstruction = resolved and resolved.instruction or nil,
+        activeObjective = resolved and resolved.objective or nil,
+        activeGuideAction = resolved and API:GetPinpointInstruction(resolved.element) or nil,
+        activeItemName = resolved and resolved.itemName or nil,
     }
 end
 

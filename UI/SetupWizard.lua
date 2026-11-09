@@ -4,7 +4,7 @@ local API,UI = Navigator.API,Navigator.UI
 local Wizard = {}
 Navigator.SetupWizard = Wizard
 local VERSION = 1
-local window,body,backButton,nextButton,stepLabel,preview,styleDropdown
+local window,body,backButton,nextButton,stepLabel,preview
 local profileMode,profileName,overwriteConfirmed,errorMessage,nameBusy
 local profileEdit,overwriteCheck,overwriteLabel,profileMessage
 local draft,step,furthest,suspended,pending = nil,1,1,false,false
@@ -18,7 +18,7 @@ local steps={
     {title='Ready',description='Review your choices, then finish setup.'},
 }
 local keys={'enabled','profileUseGlobal','showHUDArrow','hudShowDistance','hudShowETA','showMinimap','showWorldMap','showMinimapButton',
-    'showWorldMarkerNative','showWorldMarkerHeader','showWorldMarkerDistance','worldMarkerUseRaidSymbols','worldMarkerRaidSymbol','worldMarkerStyle',
+    'showWorldMarkerNative','showWorldMarkerHeader','showWorldMarkerDistance','showWorldMarkerBeam','worldMarkerHideBlizzard',
     'questChatProgress','questChatCompletion','questChatAllQuests'}
 local allowed={};for _,key in ipairs(keys) do allowed[key]=true end
 local controls={}
@@ -35,7 +35,6 @@ local function ClearBody()
     controls={}
     indices={text=0,check=0,button=0}
     if preview then preview:Hide() end
-    if styleDropdown then styleDropdown:Hide() end
 end
 local function Keep(control) controls[#controls+1]=control;return control end
 local function Text(text,x,y,width,font)
@@ -52,8 +51,6 @@ local function BodyButton(text,x,y,width,fn)
     if not button then button=UI:Button(body,'',width,30);pools.button[indices.button]=button end
     button:ClearAllPoints();button:SetPoint('TOPLEFT',x,y);button:SetSize(width,36)
     button:SetText(T(text));button:SetScript('OnClick',fn)
-    button.symbolIndex=nil
-    if button.symbolIcon then button.symbolIcon:Hide() end
     button:Show();return Keep(button)
 end
 local function Toggle(key,text,x,y)
@@ -68,28 +65,13 @@ end
 function Wizard:GetOption(key) return draft and draft[key] end
 function Wizard:SetOption(key,value)
     if not draft or not allowed[key] then return false end
-    if key=='worldMarkerStyle' then
-        local valid=false;for _,option in ipairs(Navigator.WorldMarkerVisual:GetStyleOptions()) do if option.id==value and value~='raid' then valid=true end end
-        if not valid then return false end
-    elseif key=='worldMarkerRaidSymbol' then
-        value=tonumber(value)
-        if not value or value%1~=0 or value<1 or value>8 then return false end
-    elseif type(value)~='boolean' then return false end
+    if type(value) ~= 'boolean' then return false end
     draft[key]=value
-    if key=='worldMarkerRaidSymbol' then draft.worldMarkerUseRaidSymbols=true end
     for _,check in ipairs(pools.check) do if check.optionKey then check:SetChecked(draft[check.optionKey]==true) end end
-    for _,button in ipairs(pools.button) do
-        if button.symbolIndex then button.bg:SetColorTexture(.08,.18,button.symbolIndex==draft.worldMarkerRaidSymbol and .40 or .18,1) end
-    end
-    if styleDropdown and step==3 then UIDropDownMenu_SetText(styleDropdown,T(Navigator.WorldMarkerVisual:GetStyleLabel(draft))) end
-    if preview and step==3 then Navigator.WorldMarkerVisual:RefreshPreview(preview,'OnMyWay',draft) end
+    if preview and step==3 then Navigator.WorldMarkerVisual:RefreshPreview(preview,draft) end
     return true
 end
 function Wizard:IsOpen() return draft~=nil end
-function Wizard:SetMarkerStyle(id)
-    if not draft or not Navigator.WorldMarkerVisual:SetStyle(draft,id) then return false end
-    return self:SetOption('worldMarkerUseRaidSymbols',id=='raid')
-end
 local function Target()
     return profileMode=='general' and 'Default' or tostring(profileName or ''):gsub('^%s+',''):gsub('%s+$','')
 end
@@ -161,34 +143,12 @@ function Wizard:Render()
             preview=Navigator.WorldMarkerVisual:CreatePreview(body)
             preview:ClearAllPoints();preview:SetPoint('CENTER',body,'TOPLEFT',138,-226)
         end
-        Navigator.WorldMarkerVisual:RefreshPreview(preview,'OnMyWay',draft)
+        Navigator.WorldMarkerVisual:RefreshPreview(preview,draft)
         Toggle('showWorldMarkerNative','Enable world marker',294,-114)
         Toggle('showWorldMarkerHeader','Show target header',294,-166)
         Toggle('showWorldMarkerDistance','Show distance',294,-218)
-        Text('Marker appearance',294,-260,280)
-        if not styleDropdown then
-            styleDropdown=CreateFrame('Frame',nil,body,'UIDropDownMenuTemplate')
-            for _,part in ipairs({'Left','Middle','Right'}) do if styleDropdown[part] then styleDropdown[part]:Hide() end end
-            UI:Panel(styleDropdown)
-            UIDropDownMenu_SetWidth(styleDropdown,250)
-            UIDropDownMenu_Initialize(styleDropdown,function(_,level)
-                for _,option in ipairs(Navigator.WorldMarkerVisual:GetStyleOptions()) do
-                    local id=option.id
-                    local info=UIDropDownMenu_CreateInfo();info.text=T(option.label);info.checked=Navigator.WorldMarkerVisual:GetStyle(draft)==id
-                    info.func=function() Wizard:SetMarkerStyle(id) end;UIDropDownMenu_AddButton(info,level)
-                end
-            end)
-        end
-        styleDropdown:ClearAllPoints();styleDropdown:SetPoint('TOPLEFT',body,'TOPLEFT',278,-279);styleDropdown:Show()
-        UIDropDownMenu_SetText(styleDropdown,T(Navigator.WorldMarkerVisual:GetStyleLabel(draft)))
-        for i=1,8 do
-            local symbol=i
-            local button=BodyButton('',24+(i-1)*49,-328,40,function() Wizard:SetOption('worldMarkerRaidSymbol',symbol) end)
-            button.symbolIndex=symbol;button.bg:SetColorTexture(.08,.18,symbol==draft.worldMarkerRaidSymbol and .40 or .18,1)
-            local icon=button.symbolIcon or button:CreateTexture(nil,'ARTWORK');button.symbolIcon=icon;icon:SetSize(25,25);icon:SetPoint('CENTER');icon:Show()
-            icon:SetTexture('Interface\\TargetingFrame\\UI-RaidTargetingIcon_'..symbol)
-            button:SetScript('OnClick',function() Wizard:SetOption('worldMarkerRaidSymbol',symbol) end)
-        end
+        Toggle('showWorldMarkerBeam','Show close-range beam',294,-270)
+        Toggle('worldMarkerHideBlizzard','Hide duplicate Blizzard marker',294,-322)
         local navEnabled=true
         if C_CVar and C_CVar.GetCVar then local ok,value=pcall(C_CVar.GetCVar,'showInGameNavigation');navEnabled=not ok or tostring(value)=='1' end
         if not navEnabled then

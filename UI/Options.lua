@@ -271,33 +271,6 @@ local function BuildGeneralPage(panel)
         function() return db.showWorldMarkerBeam ~= false end,
         function(v) db.showWorldMarkerBeam = v end)
 
-    local de = GetLocale and GetLocale() == "deDE"
-    MakeCheckbox(panel, page, API:Localize("Use personal raid symbol"), 340, -116,
-        function() return db.worldMarkerUseRaidSymbols == true end,
-        function(v) db.worldMarkerUseRaidSymbols = v end)
-    local symbol = MakeButton(page)
-    symbol:SetSize(240, 26)
-    symbol:SetPoint("TOPLEFT", 340, -154)
-    local names = {"Star", "Circle", "Diamond", "Triangle", "Moon", "Square", "Cross", "Skull"}
-    local function SymbolIndex()
-        return Navigator.WorldMarker:GetLocalRaidSymbolIndex({worldMarkerUseRaidSymbols = true, worldMarkerRaidSymbol = db.worldMarkerRaidSymbol})
-    end
-    symbol.Refresh = function(self)
-        local index = SymbolIndex()
-        self:SetText("|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_" .. index .. ":16|t " .. API:Localize(names[index]) .. " →")
-    end
-    symbol:SetScript("OnClick", function(self)
-        db.worldMarkerRaidSymbol = SymbolIndex() % 8 + 1
-        self:Refresh()
-        RefreshAll()
-    end)
-    Register(panel, symbol)
-    local note = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    note:SetPoint("TOPLEFT", 340, -188)
-    note:SetWidth(270)
-    note:SetJustifyH("LEFT")
-    note:SetText(API:Localize("Visible only to you. Not an actual raid world marker."))
-
     local themeLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     themeLabel:SetPoint("TOPLEFT", 18, -164)
     themeLabel:SetText(L("colorTheme"))

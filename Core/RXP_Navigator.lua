@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.0"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.2"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -222,32 +222,7 @@ local defaults = {
     showWorldMarkerDistance = true,
     worldMarkerBeamDistance = 65,
     worldMarkerScale = 1.0,
-    worldMarkerStyle = "auto",
-    worldMarkerUseRaidSymbols = false,
-    worldMarkerRaidSymbol = 3,
-    worldMarkerNPCAutoAnchor = true,
-    worldMarkerNPCMaxDistance = 75,
     worldMarkerHideBlizzard = true,
-    showWorldMarkerGroundRing = true,
-    worldMarkerGroundRingScale = 1.0,
-    worldMarkerGroundRingAlpha = 0.72,
-    worldMarkerCustomColors = false,
-    markerAssistR = 0.23,
-    markerAssistG = 0.95,
-    markerAssistB = 0.34,
-    markerTravelR = 0.18,
-    markerTravelG = 0.72,
-    markerTravelB = 1.00,
-    markerAttackR = 1.00,
-    markerAttackG = 0.62,
-    markerAttackB = 0.10,
-    markerDefaultR = 0.22,
-    markerDefaultG = 0.68,
-    markerDefaultB = 1.00,
-    worldMarkerGroundRingUseMarkerColor = true,
-    worldMarkerGroundRingR = 0.18,
-    worldMarkerGroundRingG = 0.72,
-    worldMarkerGroundRingB = 1.00,
     profileUseGlobal = true,
     profileSelected = "Default",
 }
@@ -310,8 +285,6 @@ end
 local function NormalizeMarkerSettings(settings)
     local ranges = {
         worldMarkerScale = {0.70, 1.40},
-        worldMarkerGroundRingScale = {0.65, 1.50},
-        worldMarkerGroundRingAlpha = {0.15, 1.00},
     }
     for key, range in pairs(ranges) do
         local value = tonumber(settings[key])
@@ -1553,6 +1526,9 @@ local function DetectStepType(element)
     if tag == "home" or tag == "bindlocation" then return "talk" end
     if tag == "accept" or tag == "daily" then return "accept" end
     if tag == "turnin" or tag == "dailyturnin" then return "turnin" end
+    if tag == "train" or tag == "trainer" then return "train" end
+    if tag == "dungeon" then return "dungeon" end
+    if tag == "vendor" or tag == "buy" or tag == "sell" then return "vendor" end
     if tag == "collect" or tag == "collectmultiple" then return "loot" end
     if tag == "fly" or tag == "fp" or tag == "goto" or tag == "waypoint" or tag == "zone" or
        tag == "hs" or tag == "hsbatching" then return "travel" end
@@ -2556,8 +2532,8 @@ PositionInDisplayedMap = function(sourceMapID, x, y, displayMapID, allowOutside)
 
     -- Normal Blizzard conversion first.
     if C_Map.GetMapPosFromWorldPos then
-        local _, mapPos = C_Map.GetMapPosFromWorldPos(continentID, worldPos, displayMapID)
-        if mapPos then
+        local resultMapID, mapPos = C_Map.GetMapPosFromWorldPos(continentID, worldPos, displayMapID)
+        if resultMapID == displayMapID and mapPos then
             local mx, my = GetXY(mapPos)
             if mx and my and (allowOutside or (mx >= 0 and mx <= 1 and my >= 0 and my <= 1)) then
                 return mx, my
@@ -2601,6 +2577,16 @@ local function ClampTargetToMapEdge(px, py, tx, ty, inset)
 end
 
 local function GetPlayerPositionInDisplayedMap(displayMapID, allowOutside)
+    -- Project from the actual player zone before asking the viewed map.
+    -- A parent map may return a plausible but misplaced normalized position.
+    local playerZone = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+    if playerZone then
+        local x, y = GetPlayerPositionForMap(playerZone)
+        if x then
+            local mx, my = PositionInDisplayedMap(playerZone, x, y, displayMapID, allowOutside)
+            if mx and my then return mx, my, mx < 0 or mx > 1 or my < 0 or my > 1 end
+        end
+    end
     local x, y = GetPlayerPositionForMap(displayMapID)
     if x then return x, y, false end
     local playerMapID, px, py = ResolvePlayerMapAndPosition(displayMapID)
@@ -2819,6 +2805,7 @@ local function UpdateWorldMapRoute()
     local displayMapID = GetDisplayedMapID()
     if not displayMapID then HideWorldRoute() return end
 
+    local artworkScale = GetWorldMapArtworkScale(worldMapOverlay)
     local rawCurrent = GetCurrentNavigationElement()
     if not rawCurrent then HideWorldRoute() return end
     local routePlan = Navigator.RouteResolver and Navigator.RouteResolver:GetCurrentPlan()
@@ -2850,10 +2837,10 @@ local function UpdateWorldMapRoute()
         ResizeTargetMarker(worldTargetPin, 0.72, db.worldTargetSize or db.targetSize)
         UpdateMarkerMetadata(worldTargetPin, rawCurrent, 1, true)
         SetCurrentMarkerHighlight(worldTargetPin, db.currentHighlight, false)
-        worldTargetPin:SetScale(1)
+        worldTargetPin:SetScale(artworkScale)
         worldTargetPin:SetAlpha(1)
         worldTargetPin:ClearAllPoints()
-        worldTargetPin:SetPoint("CENTER", worldMapOverlay, "TOPLEFT", gx * w, -gy * h)
+        worldTargetPin:SetPoint("CENTER", worldMapOverlay, "TOPLEFT", gx * w / artworkScale, -gy * h / artworkScale)
         if db.showTargetMarker then worldTargetPin:Show() end
         local hb = GetWorldHitbox(1)
         if hb then
@@ -2877,12 +2864,13 @@ local function UpdateWorldMapRoute()
 
     local targetInside = rawGX >= 0 and rawGX <= 1 and rawGY >= 0 and rawGY <= 1
     if playerOffMap and targetInside then
-        px, py = ClampTargetToMapEdge(rawGX, rawGY, px, py, 0.025)
+        px, py = ClampTargetToMapEdge(rawGX, rawGY, px, py, 0)
     elseif playerOffMap then
         HideWorldRoute()
         return
     end
-    local gx, gy = ClampTargetToMapEdge(px, py, rawGX, rawGY, 0.025)
+    local gx, gy = rawGX, rawGY
+    if not targetInside then gx, gy = ClampTargetToMapEdge(px, py, gx, gy, 0) end
 
     local w, h = worldMapOverlay:GetWidth(), worldMapOverlay:GetHeight()
     if not w or not h or w < 10 or h < 10 then HideWorldRoute() return end
@@ -2901,8 +2889,7 @@ local function UpdateWorldMapRoute()
 
     local mainThickness = math.max(2.6, baseThickness * 0.74 * boost)
     local shadowThickness = mainThickness + math.max(1.6, 1.00 * boost)
-    local artworkScale = GetWorldMapArtworkScale(worldMapOverlay)
-    local worldMarkerScale = math.max(0.42, math.min(0.72, 0.72 / (boost ^ 0.78))) * artworkScale
+    local worldMarkerScale = math.max(0.42, math.min(0.72, 0.72 / (boost ^ 0.78)))
     local theme = GetTheme()
     local corpseMode = rawCurrent and rawCurrent.corpseNav
     local orr, org, orb = GetOutlineColor(theme)
@@ -2916,10 +2903,10 @@ local function UpdateWorldMapRoute()
     ResizeTargetMarker(worldTargetPin, worldMarkerScale, db.worldTargetSize or db.targetSize)
     UpdateMarkerMetadata(worldTargetPin, current, 1, true)
     SetCurrentMarkerHighlight(worldTargetPin, db.currentHighlight, corpseMode)
-    worldTargetPin:SetScale(1)
+    worldTargetPin:SetScale(artworkScale)
     worldTargetPin:SetAlpha(1)
     worldTargetPin:ClearAllPoints()
-    worldTargetPin:SetPoint("CENTER", worldMapOverlay, "TOPLEFT", gx * w, -gy * h)
+    worldTargetPin:SetPoint("CENTER", worldMapOverlay, "TOPLEFT", gx * w / artworkScale, -gy * h / artworkScale)
     if db.showTargetMarker then worldTargetPin:Show() else worldTargetPin:Hide() end
 
     local hitbox = GetWorldHitbox(1)
@@ -2949,7 +2936,9 @@ local function UpdateWorldMapRoute()
         local rx, ry
         if mapID then rx, ry = PositionInDisplayedMap(mapID, ex, ey, displayMapID, true) end
         if rx and ry then
-            rx, ry = ClampTargetToMapEdge(prevPX, prevPY, rx, ry, 0.025)
+            if rx < 0 or rx > 1 or ry < 0 or ry > 1 then
+                rx, ry = ClampTargetToMapEdge(prevPX, prevPY, rx, ry, 0)
+            end
             local last = projected[#projected]
             if not last or math.abs(last.x - rx) > 0.0002 or math.abs(last.y - ry) > 0.0002 then
                 projected[#projected + 1] = { x = rx, y = ry, element = element }
@@ -2978,7 +2967,7 @@ local function UpdateWorldMapRoute()
     local segmentIndex = 0
     for i = 2, #smoothPoints do
         local a, b = smoothPoints[i - 1], smoothPoints[i]
-        if math.sqrt((b.x - a.x)^2 + (b.y - a.y)^2) > 0.8 then
+        if (b.x - a.x)^2 + (b.y - a.y)^2 > 1e-12 then
             segmentIndex = segmentIndex + 1
             local line, shadow = GetWorldRouteSegment(segmentIndex)
             shadow:SetColorTexture(orr, org, orb, 0.90)
@@ -3028,7 +3017,10 @@ local function UpdateWorldMapRoute()
     for _, cluster in ipairs(clusters) do
         local isCurrentCluster = false
         for _, member in ipairs(cluster.members) do if member.ordinal == 1 then isCurrentCluster = true break end end
-        local cx, cy = ClampTargetToMapEdge(px, py, cluster.x, cluster.y, 0.025)
+        local cx, cy = cluster.x, cluster.y
+        if cx < 0 or cx > 1 or cy < 0 or cy > 1 then
+            cx, cy = ClampTargetToMapEdge(px, py, cx, cy, 0)
+        end
         if isCurrentCluster then
             local hb = GetWorldHitbox(1)
             if hb then
@@ -3044,10 +3036,10 @@ local function UpdateWorldMapRoute()
             local strongestOrdinal = cluster.members[1] and cluster.members[1].ordinal or pinOrdinal
             ResizeTargetMarker(pin, worldMarkerScale, db.worldTargetSize or db.targetSize)
             UpdateMarkerMetadata(pin, cluster.members[1] and cluster.members[1].element or nil, strongestOrdinal, true)
-            pin:SetScale(1)
+            pin:SetScale(artworkScale)
             pin:SetAlpha(math.max(0.48, 0.74 - (strongestOrdinal - 2) * 0.10))
             pin:ClearAllPoints()
-            pin:SetPoint("CENTER", worldMapOverlay, "TOPLEFT", cx * w, -cy * h)
+            pin:SetPoint("CENTER", worldMapOverlay, "TOPLEFT", cx * w / artworkScale, -cy * h / artworkScale)
             if pin.rxpFutureLabel then pin.rxpFutureLabel:SetText(""); pin.rxpFutureLabel:Hide() end
             if db.showTargetMarker then pin:Show() else pin:Hide() end
 
@@ -3542,7 +3534,7 @@ local function UpdateHUDArrow(dt)
             if hudDistanceText then
                 local planForDisplay = smartTravelPlan
                 local routeKind = planForDisplay and planForDisplay.route and planForDisplay.route.kind or nil
-                local iconTexture = Navigator.Presentation and Navigator.Presentation:GetTransportIcon(routeKind) or "Interface\MINIMAP\TRACKING\FlightMaster"
+                local iconTexture = Navigator.Presentation and Navigator.Presentation:GetTransportIcon(routeKind) or "Interface\\MINIMAP\\TRACKING\\FlightMaster"
                 local icon = "|T" .. iconTexture .. ":20:20:0:0|t"
                 local title = Navigator.Presentation and Navigator.Presentation:FormatTravelTitle(planForDisplay)
                 if not title then
@@ -3914,6 +3906,130 @@ function Navigator.API:GetHUDNavigationMetrics(element) return GetHUDNavigationM
 function Navigator.API:FormatHUDDistance(distance) return FormatHUDDistance(distance) end
 function Navigator.API:FormatETA(seconds, approximate) return FormatETA(seconds, approximate) end
 function Navigator.API:GetNavigationTargets(maxFuture) return GetNavigationTargets(maxFuture) end
+-- The map element can contain only a counter; recover the action from its own guide step.
+function Navigator.API:GetConversationHeader(element, action, instruction)
+    local lower = (instruction or ""):lower()
+    local learnFlight = action == "flight" and (lower:match("^erlernt? die flugroute")
+        or lower:match("^erlernt? den flugpunkt") or lower:match("^learn the flight path")
+        or lower:match("^learn flight path"))
+    if not element or (action ~= "accept" and action ~= "turnin" and action ~= "talk" and not learnFlight) then return end
+    local step = element.step
+    if not step then return end
+    local npc, note, ambiguous
+    local function scan(value)
+        local text = CleanRXPText(value)
+        if not text then return end
+        for line in text:gmatch("[^\n]+") do
+            local lower = line:lower()
+            local name = line:match("^[Ss]prich mit (.+)") or line:match("^[Ss]precht mit (.+)")
+                or line:match("^[Rr]ede mit (.+)") or line:match("^[Tt]alk to (.+)")
+            if name then
+                name = name:gsub("[%.!]$", "")
+                if npc and npc ~= name then ambiguous = true end
+                npc = name
+            elseif not note and (lower:find("patrouill",1,true) or lower:find("patrol",1,true)) then
+                note = line
+            end
+        end
+    end
+    scan(step.text)
+    scan(step.hiddentext)
+    for _, sibling in ipairs(step.elements or {}) do
+        if type(sibling) == "table" and not sibling.skip then
+            local rendered = sibling.frame and sibling.frame.text
+            if rendered and rendered.GetText then scan(rendered:GetText()) end
+            scan(sibling.text)
+            scan(sibling.hiddentext)
+            scan(sibling.rawtext)
+            scan(sibling.tooltipText)
+        end
+    end
+    if ambiguous then return nil, note end
+    if not npc and note then
+        npc = note:match("^(.+) patrouilliert%s") or note:match("^(.+) patrols%s")
+    end
+    if not npc then return nil, note end
+    local german = GetLocale and GetLocale() == "deDE"
+    if action == "talk" or learnFlight then
+        return (german and "Sprich mit " or "Talk to ") .. npc, learnFlight and instruction or note
+    end
+
+    local questID = FindQuestID(element)
+    local quest = questID and C_QuestLog and C_QuestLog.GetTitleForQuest and C_QuestLog.GetTitleForQuest(questID)
+    if not quest or quest == "" then
+        local text = instruction or ""
+        if action == "turnin" then
+            quest = text:match("^[Gg]ebt die Quest (.+) ab[%.!]?$")
+                or text:match("^[Gg]ib die Quest (.+) ab[%.!]?$")
+                or text:match("^[Tt]urn in (.+)") or text:match("^[Aa]bgeben %[(.+)%]")
+        else
+            quest = text:match("^[Nn]ehmt die Quest (.+) an[%.!]?$")
+                or text:match("^[Nn]imm die Quest (.+) an[%.!]?$")
+                or text:match("^[Aa]ccept (.+)") or text:match("^[Aa]nnehmen %[(.+)%]")
+        end
+    end
+    if not quest or quest == "" then return nil, note end
+    quest = quest:gsub("^%[(.+)%]$", "%1")
+    if german then
+        local pattern = action == "turnin" and "Sprich mit %s und gib die Quest „%s“ ab"
+            or "Sprich mit %s und nimm die Quest „%s“ an"
+        return pattern:format(npc,quest), note
+    end
+    local pattern = action == "turnin" and "Talk to %s and turn in “%s”"
+        or "Talk to %s and accept “%s”"
+    return pattern:format(npc,quest), note
+end
+
+function Navigator.API:IsItemUseInstruction(text)
+    if type(text) ~= "string" then return false end
+    local lower = text:lower()
+    return lower:match("^benutz[et]%s") or lower:match("^benutzen%s")
+        or lower:match("^verwendet%s") or lower:match("^verwende%s")
+        or lower:match("^use%s")
+end
+
+local KILL_INSTRUCTION_PREFIXES = {"tötet ", "töte ", "besiegt ", "besiege ", "kill ", "slay ", "defeat "}
+
+function Navigator.API:IsKillInstruction(text)
+    if type(text) ~= "string" then return false end
+    local lower = text:lower()
+    for _, prefix in ipairs(KILL_INSTRUCTION_PREFIXES) do
+        if lower:sub(1, #prefix) == prefix then return true end
+    end
+    return false
+end
+
+function Navigator.API:GetPinpointInstruction(element)
+    if not element then return nil end
+    local function actionText(value)
+        local text = CleanRXPText(value)
+        if not text or text:match('%d+%s*/%s*%d+%s*$') then return nil end
+        if self:IsItemUseInstruction(text) or self:IsKillInstruction(text) then return text end
+        local lower = text:lower()
+        for _, prefix in ipairs({"sammelt ", "sammle ", "plündert ", "plündere ", "plünder ", "pluendert ", "collect ", "loot ", "gather "}) do
+            if lower:sub(1,#prefix) == prefix then return text end
+        end
+    end
+    local function fromElement(e)
+        local rendered = e.frame and e.frame.text
+        return actionText(e.text) or actionText(e.rawtext) or actionText(e.hiddentext)
+            or (rendered and rendered.GetText and actionText(rendered:GetText()))
+    end
+    local own = fromElement(element)
+    if own then return own end
+    local step = element.step
+    if not step then return nil end
+    local match
+    for _, sibling in ipairs(step.elements or {}) do
+        if not sibling.skip and not sibling.completed then
+            local candidate = fromElement(sibling)
+            if candidate and match and candidate ~= match then return actionText(step.text) end
+            if candidate then match = candidate end
+        end
+    end
+    return match or actionText(step.text)
+end
+
 function Navigator.API:GetTargetInstruction(element) return GetTargetInstruction(element) end
 function Navigator.API:GetNormalizedRXPData(element) return Navigator.RXPData and Navigator.RXPData.Normalize and Navigator.RXPData:Normalize(element) or nil end
 function Navigator.API:DetectStepType(element) return DetectStepType(element) end
@@ -4017,6 +4133,7 @@ function Navigator.API:GetMinimapFuturePoint(element, playerMapID, px, py, halfW
 end
 function Navigator.API:ResolveActiveGuideAndStep() return ResolveActiveGuideAndStep() end
 function Navigator.API:PositionInDisplayedMap(...) return PositionInDisplayedMap(...) end
+function Navigator.API:GetWorldMapArtworkScale(parent) return GetWorldMapArtworkScale(parent) end
 function Navigator.API:SetNativeWorldLine(...) return SetNativeWorldLine(...) end
 function Navigator.API:LowerClean(value) return LowerClean(value) end
 function Navigator.API:GetWorldMapCanvas() return GetWorldMapCanvas() end
@@ -4090,6 +4207,7 @@ SlashCmdList.RXPNAV = function(msg)
     elseif msg == "inspectcopy" then Navigator.Inspector.SafeInspectCopy()
     elseif msg == "reset" then
         RXPNavigatorDB = nil; CopyDefaults(); RefreshAll(); Print(L("resetDone"))
+    elseif msg == "markerstatus" then if Navigator.WorldMarkerVisual then Navigator.WorldMarkerVisual:PrintStatus() end
     elseif msg == "" or msg == "status" then if Navigator.Diagnostics then Navigator.Diagnostics:Status() end
     else
         Print("/rxpnav status | npctest | npctest status | npctest off | toggle | goals 0-6 | maptest | bugreport | deathstatus | options | setup | layout | arrow | hudlock | future 0|1|2|3|4|5|6 | animation | distance | map | on | off | reset")

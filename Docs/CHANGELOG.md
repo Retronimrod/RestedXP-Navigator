@@ -1,13 +1,6 @@
-# RestedXP-Navigator Changelog
+## 1.7.2
 
-## 1.7.0
-
-- World Map routes, outlines, target rings and direction indicators adjust to map zoom.
-- Added a first-run setup wizard with shared and character-specific profiles.
-- HUD elements can be moved and scaled in Edit Mode.
-- Added optional quest progress and completion announcements in group chat.
-- Localized the interface for all supported client languages.
-- Added selectable built-in world marker styles and personal raid symbols.
+- Consolidated world markers into the beacon and cleaned up the related settings.
 
 ## 1.7.0-beta.2
 - Optional local raid symbols for the in-world target marker and target header, with all eight symbols selectable in General settings.
@@ -18,6 +11,7 @@
 - Manual raid world-marker placement and per-marker clearing with secure click buttons.
 - Combat-safe toolbar visibility updates; no remote coordinate placement.
 
+# RestedXP-Navigator Changelog
 
 ## 1.6.11
 - Made the in-addon What's New panel scrollable so long release histories no longer overflow the window.
