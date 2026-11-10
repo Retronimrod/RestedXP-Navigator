@@ -17,7 +17,7 @@ local steps={
     {title='Edit layout',description='Move and scale your HUD in edit mode.'},
     {title='Ready',description='Review your choices, then finish setup.'},
 }
-local keys={'enabled','profileUseGlobal','showHUDArrow','hudShowDistance','hudShowETA','showMinimap','showWorldMap','showMinimapButton',
+local keys={'distanceUnit','enabled','profileUseGlobal','showHUDArrow','hudShowDistance','showMinimap','showWorldMap','showMinimapButton',
     'showWorldMarkerNative','showWorldMarkerHeader','showWorldMarkerDistance','showWorldMarkerBeam','worldMarkerHideBlizzard',
     'questChatProgress','questChatCompletion','questChatAllQuests'}
 local allowed={};for _,key in ipairs(keys) do allowed[key]=true end
@@ -65,7 +65,9 @@ end
 function Wizard:GetOption(key) return draft and draft[key] end
 function Wizard:SetOption(key,value)
     if not draft or not allowed[key] then return false end
-    if type(value) ~= 'boolean' then return false end
+    if key == 'distanceUnit' then
+        if value ~= 'metric' and value ~= 'imperial' then return false end
+    elseif type(value) ~= 'boolean' then return false end
     draft[key]=value
     for _,check in ipairs(pools.check) do if check.optionKey then check:SetChecked(draft[check.optionKey]==true) end end
     if preview and step==3 then Navigator.WorldMarkerVisual:RefreshPreview(preview,draft) end
@@ -134,10 +136,18 @@ function Wizard:Render()
     elseif step==2 then
         Toggle('showHUDArrow','Show HUD arrow',24,-116)
         Toggle('hudShowDistance','Show distance',318,-116)
-        Toggle('hudShowETA','Show ETA',24,-174)
         Toggle('showMinimap','Show on minimap',318,-174)
         Toggle('showWorldMap','Show on world map',24,-232)
         Toggle('showMinimapButton','Show minimap button',318,-232)
+        Text('Distance units',24,-290,565)
+        local function ChooseUnit(unit)
+            Wizard:SetOption('distanceUnit',unit)
+            Wizard:Render()
+        end
+        BodyButton((draft.distanceUnit == 'metric' and '✓ ' or '')..T('Meters / kilometers'),
+            24,-320,265,function() ChooseUnit('metric') end)
+        BodyButton((draft.distanceUnit ~= 'metric' and '✓ ' or '')..T('Yards / miles'),
+            318,-320,265,function() ChooseUnit('imperial') end)
     elseif step==3 then
         if not preview then
             preview=Navigator.WorldMarkerVisual:CreatePreview(body)

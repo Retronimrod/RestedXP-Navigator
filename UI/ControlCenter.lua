@@ -20,29 +20,37 @@ local MUTED = {0.58, 0.63, 0.70}
 
 local CURSEFORGE_PROFILE_URL = 'https://www.curseforge.com/members/nimri82/projects'
 
-local function EnsureExternalLinkPopup()
-    if not StaticPopupDialogs or StaticPopupDialogs['RXPNAV_EXTERNAL_LINK'] then return end
-    StaticPopupDialogs['RXPNAV_EXTERNAL_LINK'] = {
-        text = T('Open this link in your web browser:\n\n%s'),
-        button1 = CLOSE or 'Close',
-        timeout = 0,
-        whileDead = true,
-        hideOnEscape = true,
-        hasEditBox = true,
-        editBoxWidth = 440,
-        OnShow = function(self, data)
-            local url = tostring(data or CURSEFORGE_PROFILE_URL)
-            self.editBox:SetText(url)
-            self.editBox:SetFocus()
-            self.editBox:HighlightText()
-        end,
-        EditBoxOnEnterPressed = function(self)
-            self:HighlightText()
-        end,
-        EditBoxOnEscapePressed = function(self)
-            self:GetParent():Hide()
-        end,
-    }
+local SUPPORT_EMAIL = 'rxpnav@outlook.com'
+local CURSEFORGE_COMMENTS_URL = 'https://www.curseforge.com/wow/addons/restedxp-navigator/comments'
+
+local copyDialog
+local function ShowCopyDialog(value, prompt)
+    if not copyDialog then
+        local frame = CreateFrame('Frame','RXPNavigatorCopyDialog',UIParent,'BackdropTemplate')
+        copyDialog = frame
+        frame:SetSize(500,122)
+        frame:SetPoint('CENTER')
+        frame:SetFrameStrata('FULLSCREEN_DIALOG')
+        frame:EnableMouse(true)
+        if Skin then Skin:Panel(frame,Skin.colors.background) end
+        local close = CreateFrame('Button',nil,frame,'UIPanelCloseButton')
+        close:SetPoint('TOPRIGHT',-4,-4)
+        frame.prompt = frame:CreateFontString(nil,'OVERLAY','GameFontHighlight')
+        frame.prompt:SetPoint('TOP',0,-23)
+        frame.field = CreateFrame('EditBox',nil,frame,'InputBoxTemplate')
+        frame.field:SetPoint('TOPLEFT',22,-57)
+        frame.field:SetPoint('RIGHT',frame,'RIGHT',-22,0)
+        frame.field:SetHeight(26)
+        frame.field:SetAutoFocus(false)
+        frame.field:SetScript('OnEscapePressed',function() frame:Hide() end)
+        frame:SetScript('OnHide',function() frame.field:ClearFocus() end)
+        if UISpecialFrames then table.insert(UISpecialFrames,'RXPNavigatorCopyDialog') end
+    end
+    copyDialog.prompt:SetText(prompt)
+    copyDialog.field:SetText(value)
+    copyDialog:Show()
+    copyDialog.field:SetFocus()
+    copyDialog.field:HighlightText()
 end
 
 local function OpenExternalURL(url)
@@ -62,15 +70,9 @@ local function OpenExternalURL(url)
 
     -- Standard Blizzard clients do not expose a general arbitrary-URL
     -- launcher to addons. Fall back to a selected/copyable URL dialog.
-    EnsureExternalLinkPopup()
-    if StaticPopup_Show then
-        local popup = StaticPopup_Show('RXPNAV_EXTERNAL_LINK', url, nil, url)
-        if popup and popup.editBox then
-            popup.editBox:SetText(url)
-            popup.editBox:SetFocus()
-            popup.editBox:HighlightText()
-        end
-    end
+    local german = GetLocale and GetLocale() == 'deDE'
+    ShowCopyDialog(url,german and 'Link kopieren (Strg+C) und im Browser öffnen'
+        or 'Copy this link (Ctrl+C) and open it in your browser')
     return false
 end
 
@@ -218,6 +220,101 @@ local function WorldMarkerPreview(parent)
     return preview
 end
 
+local newsWindow
+local restoreSettingsAfterNews
+local releases = {
+    {"1.7.3", "Distance units, navigation and performance", "Entfernung, Navigation und Performance",
+        "Choose meters/kilometers or yards/miles in Navigation settings and during setup.\n\n• The navigation arrow has a gold finish and shows distance without an ETA.\n\n• The world marker reuses its resolved target, and the minimap skips redundant drawing updates.\n\n• Added this release history and an in-game update notice.",
+        "Meter/Kilometer oder Yards/Meilen in den Navigationseinstellungen und bei der Einrichtung auswählen.\n\n• Der goldene Navigationspfeil zeigt die Entfernung ohne Ankunftszeit.\n\n• Der Weltmarker verwendet die ermittelten Zieldaten erneut. Die Minikarte überspringt überflüssige Zeichenupdates.\n\n• Neuigkeiten und Update-Hinweis im Spiel hinzugefügt."},
+    {"1.7.2", "Beacon", "Leuchtstrahl",
+        "The beacon is now the only world marker design. The options and setup wizard show a live preview of the current settings.",
+        "Der Leuchtstrahl ist jetzt das einzige Weltmarker-Design. Die Einstellungen und der Assistent zeigen eine Vorschau mit den gewählten Optionen."},
+    {"1.7.1", "Waypoint icons and target header", "Wegpunkt-Symbole und Zielanzeige",
+        "Added illustrated action icons and a centered target header that grows with longer instructions. Quest progress appears below the instruction.",
+        "Neue Aktionssymbole und eine zentrierte Zielanzeige, die bei längeren Anweisungen mitwächst. Der Questfortschritt steht unter der Anweisung."},
+    {"1.7.0", "Setup and map improvements", "Einrichtung und Kartenverbesserungen",
+        "Added a setup wizard, profiles, editable HUD layout, and optional group quest announcements. World-map artwork adapts to zoom.",
+        "Einrichtungsassistent, Profile, verschiebbares HUD und optionale Questmeldungen für Gruppen hinzugefügt. Die Weltkartenanzeige passt sich dem Zoom an."},
+}
+
+function CC:OpenNews()
+    if newsWindow and newsWindow:IsShown() then return end
+    restoreSettingsAfterNews = window and window:IsShown()
+    if restoreSettingsAfterNews then window:Hide() end
+    if newsWindow then newsWindow:Show(); return end
+    local de = GetLocale and GetLocale() == 'deDE'
+    local f = CreateFrame('Frame','RXPNavigatorNews',UIParent,'BackdropTemplate')
+    newsWindow = f
+    f:SetScript('OnHide',function()
+        local restore = restoreSettingsAfterNews
+        restoreSettingsAfterNews = nil
+        if restore and window then window:Show() end
+    end)
+    f:SetSize(760,480)
+    f:SetPoint('CENTER')
+    f:SetScale(math.min(1,(UIParent:GetWidth()-20)/760,(UIParent:GetHeight()-20)/480))
+    f:SetFrameStrata('DIALOG')
+    f:EnableMouse(true)
+    f:SetClampedToScreen(true)
+    if Skin then Skin:Window(f,760,480)
+    else Backdrop(f,PANEL[1],PANEL[2],PANEL[3],PANEL[4],{.16,.18,.23,1}) end
+    f:SetMovable(true)
+    local drag = CreateFrame('Frame',nil,f)
+    drag:SetPoint('TOPLEFT')
+    drag:SetPoint('TOPRIGHT',-38,0)
+    drag:SetHeight(64)
+    drag:EnableMouse(true)
+    drag:RegisterForDrag('LeftButton')
+    drag:SetScript('OnDragStart',function() f:StartMoving() end)
+    drag:SetScript('OnDragStop',function() f:StopMovingOrSizing() end)
+    if UISpecialFrames then table.insert(UISpecialFrames,'RXPNavigatorNews') end
+    Text(f,'GameFontNormalLarge',T("What's New")..' · RestedXP-Navigator',18,-20,675):SetTextColor(.95,.97,1)
+    local close = CreateFrame('Button',nil,f,'UIPanelCloseButton')
+    close:SetPoint('TOPRIGHT',-3,-3)
+    Text(f,'GameFontNormal',de and 'Versionen' or 'Versions',18,-76,170)
+
+    local paper = CreateFrame('Frame',nil,f,'BackdropTemplate')
+    paper:SetPoint('TOPLEFT',205,-72)
+    paper:SetPoint('BOTTOMRIGHT',-18,55)
+    Backdrop(paper,CARD[1],CARD[2],CARD[3],CARD[4],{.14,.16,.20,1})
+    local scroll = CreateFrame('ScrollFrame',nil,paper,'UIPanelScrollFrameTemplate')
+    scroll:SetPoint('TOPLEFT',19,-18)
+    scroll:SetPoint('BOTTOMRIGHT',-31,16)
+    local child = CreateFrame('Frame',nil,scroll)
+    child:SetSize(480,1)
+    scroll:SetScrollChild(child)
+    local title = Text(child,'GameFontNormalLarge','',0,0,475)
+    local body = Text(child,'GameFontHighlight','',0,-34,475)
+    title:SetTextColor(.65,.90,1)
+    body:SetTextColor(.88,.91,.95)
+
+    local buttons = {}
+    local function Select(index)
+        for n,button in ipairs(buttons) do button:SetEnabled(n ~= index) end
+        local release = releases[index]
+        if release then
+            local version = index == 1 and API:GetVersion() or release[1]
+            title:SetText('v'..version..' · '..release[de and 3 or 2])
+            body:SetText('• '..release[de and 5 or 4])
+        else
+            title:SetText(de and 'Mitwirkende' or 'Contributors')
+            body:SetText(de and 'Entwicklung: Fabian (Nimri)' or 'Development: Fabian (Nimri)')
+        end
+        child:SetHeight(math.max(1,body:GetStringHeight()+48))
+        scroll:SetVerticalScroll(0)
+    end
+    for index,release in ipairs(releases) do
+        local version = index == 1 and API:GetVersion() or release[1]
+        buttons[index] = Button(f,'v'..version,18,-103-(index-1)*34,167,function() Select(index) end)
+    end
+    buttons[#releases+1] = Button(f,de and 'Mitwirkende' or 'Contributors',18,-253,167,function() Select(#releases+1) end)
+    Button(f,'GitHub',18,-438,110,function()
+        OpenExternalURL('https://github.com/Retronimrod/RestedXP-Navigator')
+    end)
+    Select(1)
+    f:Show()
+end
+
 local function BuildPages()
     local p,c,c2
 
@@ -266,12 +363,15 @@ local function BuildPages()
     c=Card(p,'HUD Arrow','Configure the primary direction arrow.',4,-70,700,235)
     Toggle(c,'Show HUD arrow',16,-58,function() return db.showHUDArrow end,function(v) db.showHUDArrow=v end)
     Toggle(c,'Show distance',360,-58,function() return db.hudShowDistance end,function(v) db.hudShowDistance=v end)
-    Toggle(c,'Show ETA',16,-98,function() return db.hudShowETA end,function(v) db.hudShowETA=v end)
     Toggle(c,'Lock position',360,-98,function() return db.hudLocked end,function(v) db.hudLocked=v end)
     Slider(c,'Arrow size',16,-155,300,.55,2,.05,function() return db.hudSize or 1 end,function(v) db.hudSize=v end,function(v) return string.format('%d%%',v*100) end)
     Slider(c,'Text size',360,-155,300,.65,1.8,.05,function() return db.hudTextSize or 1 end,function(v) db.hudTextSize=v end,function(v) return string.format('%d%%',v*100) end)
     c2=Card(p,'HUD appearance','Color used by the primary navigation arrow.',4,-320,700,125)
     ColorButton(c2,'HUD arrow color',16,-60,function() return db.hudColorR or .08,db.hudColorG or .74,db.hudColorB or 1 end,function(r,g,b) db.hudColorR=r;db.hudColorG=g;db.hudColorB=b end)
+    Text(c2,'GameFontNormal','Distance units',360,-42,290)
+    Dropdown(c2,360,-58,250,function() return {T('Meters / kilometers'),T('Yards / miles')} end,
+        function() return T(db.distanceUnit == 'metric' and 'Meters / kilometers' or 'Yards / miles') end,
+        function(label) db.distanceUnit = label == T('Meters / kilometers') and 'metric' or 'imperial' end)
 
     p=NewPage('worldmarker','World Marker','Beacon')
     c=Card(p,'Preview','Uses the same artwork and settings as your personal world marker.',4,-70,700,235)
@@ -283,7 +383,7 @@ local function BuildPages()
 
     c2=Card(p,'Marker behavior','Marker behavior',4,-320,700,162)
     Slider(c2,'Marker scale',16,-58,300,.70,1.40,.05,function() return db.worldMarkerScale or 1 end,function(v) db.worldMarkerScale=v end,function(v) return string.format('%d%%',v*100) end)
-    Slider(c2,'Beam activation range',360,-58,300,20,150,5,function() return db.worldMarkerBeamDistance or 65 end,function(v) db.worldMarkerBeamDistance=v end,function(v) return string.format(T('%d yd'),v) end)
+    Slider(c2,'Beam activation range',360,-58,300,20,150,5,function() return db.worldMarkerBeamDistance or 65 end,function(v) db.worldMarkerBeamDistance=v end,function(v) return API:FormatHUDDistance(v) end)
     Toggle(c2,'Show target header',16,-120,function() return db.showWorldMarkerHeader ~= false end,function(v) db.showWorldMarkerHeader=v end)
 
     p=NewPage('maps','Maps','Minimap and world-map route presentation.')
@@ -329,38 +429,17 @@ local function BuildPages()
 
     Text(c,'GameFontHighlightSmall','Built as a focused navigation layer: HUD guidance, minimap/world-map routes, Blizzard-style in-world markers and corpse-run navigation.',16,-168,650):SetTextColor(.82,.85,.90)
 
-    Button(c,'Give feedback',16,-197,175,function()
-        local url = Navigator.FeedbackFormURL
-        if type(url) ~= 'string' or not url:match('^https://[^%s]+$')
-            or url:lower():find('/api/webhooks/',1,true) then
-            url = 'https://www.curseforge.com/wow/addons/restedxp-navigator/comments'
-        end
-        OpenExternalURL(url)
+    local german = GetLocale and GetLocale() == 'deDE'
+    Button(c,SUPPORT_EMAIL,16,-197,225,function()
+        ShowCopyDialog(SUPPORT_EMAIL,german and 'Support-Adresse kopieren (Strg+C)'
+            or 'Copy the support email address (Ctrl+C)')
+    end)
+    Button(c,german and 'CurseForge-Kommentare' or 'CurseForge comments',251,-197,230,function()
+        OpenExternalURL(CURSEFORGE_COMMENTS_URL)
     end)
 
-    c2=Card(p,"What's New",'Recent changes in the current development line.',4,-320,700,250)
-
-    local scroll=CreateFrame('ScrollFrame',nil,c2,'UIPanelScrollFrameTemplate')
-    scroll:SetPoint('TOPLEFT',16,-62)
-    scroll:SetPoint('BOTTOMRIGHT',-34,16)
-
-    local scrollChild=CreateFrame('Frame',nil,scroll)
-    scrollChild:SetSize(630,1)
-    scroll:SetScrollChild(scrollChild)
-
-    local whats=Text(scrollChild,'GameFontHighlight',
-('v1.7.2\n• '..T('Beacon')..'\n\nv1.7.1\n• '..T('Give feedback')..'\n\nv1.7.0\n• '..T('Map artwork now adapts to zoom.')..'\n\nv1.7.0-beta.16\n• '..T('Setup profiles and additional marker styles.')..'\n\nv1.7.0-beta.15\n• '..T('New setup wizard and unified menus.')..'\n\nv1.7.0-beta.14\n• '..T('Move and scale your HUD in edit mode.')..'\n\nv1.7.0-beta.13\n• '..T('Quest progress and completion can be announced to your group.')..'\n\nv1.7.0-beta.12\n• '..T('Client language is selected automatically.')..'\n• '..T('Settings, tooltips and dialogs are now translated.')..
-        '\n\nv1.7.0-beta.11\n• '..T('Fixed hearthstone binding and marker settings.')..
-        '\n\nv1.7.0-beta.10\n• '..T('Restored the beta.2 baseline with native-icon attachment.')),0,0,610)
-    whats:SetJustifyH('LEFT')
-    whats:SetJustifyV('TOP')
-
-    local function UpdateWhatsNewHeight()
-        local h=math.max(1,whats:GetStringHeight()+12)
-        scrollChild:SetHeight(h)
-    end
-    scrollChild:SetScript('OnShow',UpdateWhatsNewHeight)
-    C_Timer.After(0,UpdateWhatsNewHeight)
+    c2=Card(p,"What's New",'Recent changes in the current development line.',4,-320,700,110)
+    Button(c2,"What's New",16,-59,175,function() CC:OpenNews() end)
 end
 
 local function SelectPage(key)

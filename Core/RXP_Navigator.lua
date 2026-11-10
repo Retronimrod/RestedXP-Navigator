@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.2"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.3"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -168,6 +168,7 @@ local defaults = {
     showTargetMarker = true,
     showTaskTooltip = true,
     showHUDArrow = true,
+    distanceUnit = "imperial",
     hudLocked = false,
     hudColorR = 0.08,
     hudColorG = 0.74,
@@ -180,7 +181,6 @@ local defaults = {
     corpseRouteSkullSize = 14,
     corpseAnimationSpeed = 0.5,
     hudShowDistance = true,
-    hudShowETA = true,
     hudPoint = "TOP",
     hudRelativePoint = "TOP",
     hudX = 0,
@@ -264,8 +264,6 @@ local hudArrowFrame
 local hudArrowTexture
 local hudCorpseSkull
 local hudArrowShadow
-local hudBackground
-local hudBorder = {}
 local hudDistanceText
 local hudEtaText
 local hudContextText
@@ -2597,6 +2595,31 @@ local function GetPlayerPositionInDisplayedMap(displayMapID, allowOutside)
     return mx, my, (mx < 0 or mx > 1 or my < 0 or my > 1)
 end
 
+local profileSample
+local minimapProfilePhase, minimapProfileStarted
+
+local function MarkMinimapPhase(nextPhase)
+    local now = debugprofilestop()
+    Navigator:RecordNavigationTiming(minimapProfilePhase, now - minimapProfileStarted)
+    minimapProfilePhase, minimapProfileStarted = nextPhase, now
+end
+
+local function AnchorMinimapRegion(region, x, y)
+    if region.rxpAnchorX == x and region.rxpAnchorY == y then return false end
+    region:ClearAllPoints()
+    region:SetPoint("CENTER", overlay, "CENTER", x, y)
+    region.rxpAnchorX, region.rxpAnchorY = x, y
+    return true
+end
+
+local function DrawMinimapLine(texture, x, y, thickness)
+    if texture.rxpLineX ~= x or texture.rxpLineY ~= y or texture.rxpLineThickness ~= thickness
+        or not texture:IsShown() then
+        SetRouteTexture(texture, 0, 0, x, y, thickness)
+        texture.rxpLineX, texture.rxpLineY, texture.rxpLineThickness = x, y, thickness
+    end
+end
+
 local function UpdateMinimapRoute()
     if not db or not db.enabled or not db.showMinimap then HideMinimapRoute() return end
     local rawElement = GetCurrentNavigationElement()
@@ -2614,6 +2637,7 @@ local function UpdateMinimapRoute()
     local targetMapID, tx, ty = GetTargetMap(element)
     if not targetMapID then HideMinimapRoute() return end
 
+    if minimapProfilePhase then MarkMinimapPhase("Minimap projection") end
     local playerMapID, px, py = ResolvePlayerMapAndPosition(targetMapID)
     if not playerMapID or not px then HideMinimapRoute() return end
 
@@ -2659,6 +2683,7 @@ local function UpdateMinimapRoute()
         distance = WorldDistance(pwx, pwy, twx, twy)
     end
 
+    if minimapProfilePhase then MarkMinimapPhase("Minimap drawing") end
     local halfW = math.max(1, (overlay:GetWidth() or Minimap:GetWidth() or 140) / 2)
     local halfH = math.max(1, (overlay:GetHeight() or Minimap:GetHeight() or 140) / 2)
     local minimapMarkerScale = 0.82
@@ -2690,16 +2715,20 @@ local function UpdateMinimapRoute()
         minimapRouteTexture:SetVertexColor(CORPSE_LINE[1], CORPSE_LINE[2], CORPSE_LINE[3], 1)
         if targetDot and targetDot.center then targetDot.center:SetVertexColor(CORPSE_LINE_BRIGHT[1], CORPSE_LINE_BRIGHT[2], CORPSE_LINE_BRIGHT[3], 1) end
         ConfigureRouteIconsForMode(minimapArrows, true, 12)
+        overlay.rxpNormalRouteIcons = false
     else
         local theme = GetTheme()
         local orr, org, orb = GetOutlineColor(theme)
         minimapRouteOutlineTexture:SetVertexColor(orr, org, orb, 0.96)
         minimapRouteTexture:SetVertexColor(theme.line[1], theme.line[2], theme.line[3], 1)
         if targetDot and targetDot.center then targetDot.center:SetVertexColor(theme.center[1], theme.center[2], theme.center[3], 1) end
-        ConfigureRouteIconsForMode(minimapArrows, false, 12)
+        if not overlay.rxpNormalRouteIcons then
+            ConfigureRouteIconsForMode(minimapArrows, false, 12)
+            overlay.rxpNormalRouteIcons = true
+        end
     end
-    SetRouteTexture(minimapRouteOutlineTexture, 0, 0, endX, endY, outlineThickness)
-    SetRouteTexture(minimapRouteTexture, 0, 0, endX, endY, mainThickness)
+    DrawMinimapLine(minimapRouteOutlineTexture, endX, endY, outlineThickness)
+    DrawMinimapLine(minimapRouteTexture, endX, endY, mainThickness)
     if db.animation then
         UpdateArrowSet(minimapArrows, overlay, 0, 0, endX, endY, GetTime and GetTime() or 0, 28, corpseMode, db.minimapAnimationSpeed)
         if corpseMode then ApplyCorpseProximityToIcons(minimapArrows, distance) end
@@ -2707,27 +2736,30 @@ local function UpdateMinimapRoute()
         for _, a in ipairs(minimapArrows) do a:Hide() end
     end
 
-    ResizeTargetMarker(targetDot, minimapMarkerScale, minimapBaseSize)
-    UpdateMarkerMetadata(targetDot, element, 1, false)
+    local markerSize = minimapBaseSize * minimapMarkerScale
+    if targetDot:GetWidth() ~= markerSize or targetDot:GetHeight() ~= markerSize then
+        ResizeTargetMarker(targetDot, minimapMarkerScale, minimapBaseSize)
+    end
     SetCurrentMarkerHighlight(targetDot, db.currentHighlight, corpseMode)
     if db.showTargetMarker and targetVisible then
-        targetDot:ClearAllPoints()
-        targetDot:SetPoint("CENTER", overlay, "CENTER", endX, endY)
+        AnchorMinimapRegion(targetDot, endX, endY)
         targetDot:Show()
         if minimapEdgeArrow then minimapEdgeArrow:Hide() end
         if minimapEdgeDistanceText then minimapEdgeDistanceText:Hide() end
     else
         targetDot:Hide()
         if db.showOffscreenIndicator and minimapEdgeArrow then
-            minimapEdgeArrow:ClearAllPoints()
-            minimapEdgeArrow:SetPoint("CENTER", overlay, "CENTER", endX, endY)
-            minimapEdgeArrow:SetRotation(math.atan2(endY, endX))
+            if AnchorMinimapRegion(minimapEdgeArrow, endX, endY) then
+                minimapEdgeArrow:SetRotation(math.atan2(endY, endX))
+            end
             minimapEdgeArrow:Show()
             if minimapEdgeDistanceText and distance then
-                minimapEdgeDistanceText:ClearAllPoints()
-                minimapEdgeDistanceText:SetPoint("CENTER", overlay, "CENTER", endX * 0.77, endY * 0.77)
-                if distance >= 1000 then minimapEdgeDistanceText:SetText(string.format("%.1f km", distance/1000)) else minimapEdgeDistanceText:SetText(string.format(Navigator.API:Localize("%d yd"), math.floor(distance+0.5))) end
+                AnchorMinimapRegion(minimapEdgeDistanceText, endX * 0.77, endY * 0.77)
+                local label = Navigator.API:FormatHUDDistance(distance)
+                if minimapEdgeDistanceText:GetText() ~= label then minimapEdgeDistanceText:SetText(label) end
                 minimapEdgeDistanceText:Show()
+            elseif minimapEdgeDistanceText then
+                minimapEdgeDistanceText:Hide()
             end
         else
             if minimapEdgeArrow then minimapEdgeArrow:Hide() end
@@ -2772,8 +2804,8 @@ local function UpdateMinimapRoute()
 
     if db.showDistance and distance then
         local prefix = corpseMode and (L("corpse") .. "  ") or "RXP  "
-        if distance >= 1000 then distanceText:SetText(prefix .. string.format("%.1f km", distance / 1000))
-        else distanceText:SetText(prefix .. string.format(Navigator.API:Localize("%d yd"), math.floor(distance + 0.5))) end
+        local label = prefix .. Navigator.API:FormatHUDDistance(distance)
+        if distanceText:GetText() ~= label then distanceText:SetText(label) end
         distanceText:Show()
     else
         distanceText:Hide()
@@ -3078,11 +3110,14 @@ local function UpdateWorldMapRoute()
     if Navigator.WorldMapFilter then Navigator.WorldMapFilter:SuppressNativeRXPWorldProgressLabels() end
 end
 
-local function FormatHUDDistance(distance)
+local function FormatHUDDistance(distance, settings)
     if type(distance) ~= "number" then return "--" end
-    if distance >= 1000 then
-        return string.format("%.1f km", distance / 1000)
+    if (settings or db or {}).distanceUnit == "metric" then
+        local meters = distance * 0.9144
+        if meters >= 999.5 then return string.format("%.1f km", meters / 1000) end
+        return string.format("%d m", math.floor(meters + 0.5))
     end
+    if distance >= 1759.5 then return string.format("%.1f mi", distance / 1760) end
     return string.format(Navigator.API:Localize("%d yd"), math.floor(distance + 0.5))
 end
 
@@ -3152,13 +3187,16 @@ local function ApplyHUDStyle()
     local corpseMode = IsCorpseRunMode()
     if hudArrowTexture then
         hudArrowTexture:SetTexture(texture)
+        hudArrowTexture:SetDesaturated(true)
         hudArrowTexture:SetSize(64 * arrowScale, 36 * arrowScale)
         if corpseMode then
             hudArrowTexture:SetVertexColor(CORPSE_LINE_BRIGHT[1], CORPSE_LINE_BRIGHT[2], CORPSE_LINE_BRIGHT[3], 1)
         elseif StyleUsesHudColor(style) then
-            hudArrowTexture:SetVertexColor(tonumber(db.hudColorR) or 0.08, tonumber(db.hudColorG) or 0.74, tonumber(db.hudColorB) or 1.0, 1)
+            local r, g, b = db.hudColorR, db.hudColorG, db.hudColorB
+            if r == 0.08 and g == 0.74 and b == 1.0 then r, g, b = 1, .86, .57 end
+            hudArrowTexture:SetVertexColor(r or 1, g or .86, b or .57, 1)
         else
-            hudArrowTexture:SetVertexColor(1, 1, 1, 1)
+            hudArrowTexture:SetVertexColor(1, .86, .57, 1)
         end
     end
     if hudCorpseSkull then
@@ -3189,17 +3227,13 @@ local function ApplyHUDStyle()
     if hudDistanceText then
         hudDistanceText:ClearAllPoints()
         hudDistanceText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -(44 + 20 * arrowScale))
-        hudDistanceText:SetTextColor(1, 1, 1, 1)
+        hudDistanceText:SetTextColor(1, .91, .73, 1)
     end
     if hudEtaText then
         hudEtaText:ClearAllPoints()
         hudEtaText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -(69 + 20 * arrowScale))
         hudEtaText:SetTextColor(0.82, 0.88, 0.94, 1)
     end
-
-    -- Release design: modern only.
-    if hudBackground then hudBackground:Hide() end
-    for _, edge in ipairs(hudBorder) do edge:Hide() end
 
     local locked = db.hudLocked and true or false
     hudArrowFrame:EnableMouse(not locked)
@@ -3274,9 +3308,6 @@ end
 
 local function UpdateGrindHUD(state)
     if not hudArrowFrame then return false end
-    if state == nil then
-        state = Navigator.GrindHUD and Navigator.GrindHUD.GetState and Navigator.GrindHUD:GetState() or nil
-    end
     if not state then
         HideGrindHUD()
         return false
@@ -3316,7 +3347,7 @@ end
 local function BuildHUDArrow()
     if hudArrowFrame then return hudArrowFrame end
     local f = CreateFrame("Frame", "RXPNavigatorHUDArrow", UIParent)
-    f:SetSize(190, 136)
+    f:SetSize(280, 144)
     -- Keep the navigation HUD behind Blizzard dialog/options/map frames.
     f:SetFrameStrata("MEDIUM")
     f:SetFrameLevel(5)
@@ -3324,21 +3355,6 @@ local function BuildHUDArrow()
     f:SetClampedToScreen(true)
     f:RegisterForDrag("LeftButton")
 
-    hudBackground = f:CreateTexture(nil, "BACKGROUND", nil, 0)
-    hudBackground:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -2)
-    hudBackground:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -8, 8)
-    hudBackground:SetColorTexture(0.035, 0.025, 0.015, 0.78)
-
-    local function BorderTex()
-        local t = f:CreateTexture(nil, "BORDER")
-        t:SetColorTexture(0.72, 0.52, 0.18, 0.95)
-        hudBorder[#hudBorder + 1] = t
-        return t
-    end
-    local top = BorderTex(); top:SetPoint("TOPLEFT", hudBackground, "TOPLEFT"); top:SetPoint("TOPRIGHT", hudBackground, "TOPRIGHT"); top:SetHeight(1)
-    local bottom = BorderTex(); bottom:SetPoint("BOTTOMLEFT", hudBackground, "BOTTOMLEFT"); bottom:SetPoint("BOTTOMRIGHT", hudBackground, "BOTTOMRIGHT"); bottom:SetHeight(1)
-    local left = BorderTex(); left:SetPoint("TOPLEFT", hudBackground, "TOPLEFT"); left:SetPoint("BOTTOMLEFT", hudBackground, "BOTTOMLEFT"); left:SetWidth(1)
-    local right = BorderTex(); right:SetPoint("TOPRIGHT", hudBackground, "TOPRIGHT"); right:SetPoint("BOTTOMRIGHT", hudBackground, "BOTTOMRIGHT"); right:SetWidth(1)
 
     hudArrowShadow = f:CreateTexture(nil, "ARTWORK", nil, 1)
     hudArrowShadow:SetTexture(GetHUDArrowTexturePath())
@@ -3361,7 +3377,7 @@ local function BuildHUDArrow()
 
     hudDistanceText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     hudDistanceText:SetPoint("TOP", f, "TOP", 0, -76)
-    hudDistanceText:SetTextColor(1, 1, 1, 1)
+    hudDistanceText:SetTextColor(1, .91, .73, 1)
     hudDistanceText:SetShadowColor(0, 0, 0, 1)
     hudDistanceText:SetShadowOffset(1, -1)
 
@@ -3373,7 +3389,7 @@ local function BuildHUDArrow()
 
     hudContextText = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hudContextText:SetPoint("TOP", f, "TOP", 0, -121)
-    hudContextText:SetWidth(190)
+    hudContextText:SetWidth(256)
     hudContextText:SetJustifyH("CENTER")
     hudContextText:SetTextColor(0.95, 0.78, 0.30, 1)
     hudContextText:SetShadowColor(0, 0, 0, 1)
@@ -3624,10 +3640,6 @@ local function UpdateHUDArrow(dt)
     -- WoW Forever may return a protected/secret number from GetUnitSpeed().
     -- Secret values cannot legally be compared or used in arithmetic by addons,
     -- so ETA deliberately uses a safe estimated travel speed instead.
-    local etaSpeed = 7.0
-    if IsMounted and IsMounted() then etaSpeed = 14.0 end
-    local approximate = true
-
     hudArrowTexture:SetRotation(rotation)
     if hudArrowShadow then hudArrowShadow:SetRotation(rotation) end
 
@@ -3647,11 +3659,9 @@ local function UpdateHUDArrow(dt)
         hudCorpseSkull:SetVertexColor(1,1,1,math.min(1,baseAlpha+proximity*0.50))
     end
     local grindState = (not corpseMode and Navigator.GrindHUD and Navigator.GrindHUD.GetState) and Navigator.GrindHUD:GetState() or nil
-    if db.hudShowETA and not grindState then
-        if corpseMode then hudEtaText:SetText(distance < 30 and L("corpseNearby") or L("corpseRun")) else hudEtaText:SetText(FormatETA(distance / math.max(0.1, etaSpeed), approximate)) end
+    if corpseMode and not grindState then
+        hudEtaText:SetText(distance < 30 and L("corpseNearby") or L("corpseRun"))
         hudEtaText:Show()
-        if not db.hudShowDistance then hudEtaText:ClearAllPoints(); hudEtaText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -(46 + 20 * (tonumber(db.hudSize) or 1)))
-        else hudEtaText:ClearAllPoints(); hudEtaText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -(69 + 20 * arrowScale)) end
     else
         hudEtaText:Hide()
     end
@@ -3684,6 +3694,69 @@ local function UpdateHUDArrow(dt)
     end
     UpdateGrindHUD(grindState)
     hudArrowFrame:Show()
+end
+
+local MINIMAP_PROFILE_PHASES = {"Minimap route", "Minimap projection", "Minimap drawing"}
+
+function Navigator:RecordNavigationTiming(label, milliseconds)
+    local bucket = profileSample and profileSample[label]
+    if not bucket then return end
+    bucket.total = bucket.total + milliseconds
+    bucket.calls = bucket.calls + 1
+    bucket.peak = math.max(bucket.peak, milliseconds)
+end
+
+local function FinishNavigationProfile()
+    local sample = profileSample
+    profileSample = nil
+    Navigator.navigationProfileActive = false
+    if not sample or sample.frames == 0 then return end
+    Print(("Performance | %.1f s | %.1f FPS | %d frames"):format(
+        sample.seconds, sample.frames / sample.seconds, sample.frames))
+    local total = 0
+    for _, label in ipairs({"HUD", "World marker", "Minimap", "World map"}) do
+        local bucket = sample[label]
+        if bucket.calls > 0 then
+            total = total + bucket.total
+            Print(("%s: %.3f ms/frame | %.3f ms/update avg | %.3f ms peak | %d updates"):format(
+                label, bucket.total / sample.frames, bucket.total / bucket.calls, bucket.peak, bucket.calls))
+        end
+    end
+    Print(("Measured subtotal: %.3f ms/frame"):format(total / sample.frames))
+    for _, label in ipairs(MINIMAP_PROFILE_PHASES) do
+        local bucket = sample[label]
+        if bucket.calls > 0 then
+            Print(("%s: %.3f ms/frame | %.3f ms/update avg | %d samples"):format(
+                label, bucket.total / sample.frames, bucket.total / bucket.calls, bucket.calls))
+        end
+    end
+end
+
+local function StartNavigationProfile()
+    if type(debugprofilestop) ~= "function" then
+        Print("Performance timer is unavailable on this client.")
+        return
+    end
+    profileSample = {seconds = 0, frames = 0}
+    for _, label in ipairs({"HUD", "World marker", "Minimap", "World map"}) do
+        profileSample[label] = {total = 0, calls = 0, peak = 0}
+    end
+    for _, label in ipairs(MINIMAP_PROFILE_PHASES) do
+        profileSample[label] = {total = 0, calls = 0, peak = 0}
+    end
+    Navigator.navigationProfileActive = true
+    Print("Performance recording started (30 s). /rxpnav perf stop ends it early.")
+end
+
+local function RunNavigationUpdate(label, update, ...)
+    if not profileSample then return update(...) end
+    local started = debugprofilestop()
+    if label == "Minimap" then
+        minimapProfilePhase, minimapProfileStarted = "Minimap route", started
+    end
+    update(...)
+    if label == "Minimap" then MarkMinimapPhase(nil) end
+    Navigator:RecordNavigationTiming(label, debugprofilestop() - started)
 end
 
 local function RefreshAll()
@@ -3903,7 +3976,7 @@ function Navigator.API:GetThemeName() local theme = GetTheme(); return theme and
 function Navigator.API:GetCorpseNavigationElement() return GetCorpseNavigationElement() end
 function Navigator.API:GetTargetMap(element) return GetTargetMap(element) end
 function Navigator.API:GetHUDNavigationMetrics(element) return GetHUDNavigationMetrics(element) end
-function Navigator.API:FormatHUDDistance(distance) return FormatHUDDistance(distance) end
+function Navigator.API:FormatHUDDistance(distance, settings) return FormatHUDDistance(distance, settings) end
 function Navigator.API:FormatETA(seconds, approximate) return FormatETA(seconds, approximate) end
 function Navigator.API:GetNavigationTargets(maxFuture) return GetNavigationTargets(maxFuture) end
 -- The map element can contain only a counter; recover the action from its own guide step.
@@ -4166,6 +4239,9 @@ SlashCmdList.RXPNAV = function(msg)
     elseif msg == "width normal" then db.lineStyle = "normal"; RefreshAll(); Print(Navigator.API:Localize("Line width") .. ": " .. Navigator.API:Localize("Normal"))
     elseif msg == "width strong" then db.lineStyle = "strong"; RefreshAll(); Print(Navigator.API:Localize("Line width") .. ": " .. Navigator.API:Localize("Strong"))
     elseif msg:match("^goals%s+[0-6]$") then local n=tonumber(msg:match("(%d)$")); db.futureGoals=n; RefreshAll(); Print(L("upcoming") .. ": " .. (n==0 and Navigator.API:Localize("Off") or ("+"..n)))
+    elseif msg == "news" then if Navigator.ControlCenter then Navigator.ControlCenter:OpenNews() end
+    elseif msg == "perf" then StartNavigationProfile()
+    elseif msg == "perf stop" then FinishNavigationProfile()
     elseif msg == "maptest" then if Navigator.Diagnostics then Navigator.Diagnostics:PrintMapDiagnostics(true); Navigator.API:ShowInspectorExport() end
     elseif msg == "bugreport" then if Navigator.Diagnostics then Navigator.Diagnostics:GenerateBugReport() end
     elseif msg == "future 0" then db.futureGoals = 0; RefreshAll(); Print(L("upcoming") .. ": " .. Navigator.API:Localize("Off"))
@@ -4241,6 +4317,12 @@ Navigator:SetScript("OnEvent", function(self, event, arg1)
         if Navigator.MinimapButton and Navigator.MinimapButton.Update then Navigator.MinimapButton:Update() end
         RefreshAll()
         Print(L("loaded") .. " (v" .. ADDON_VERSION .. " RestedXP-Navigator). /rxpnav options")
+        if RXPNavigatorDB.newsNotifiedVersion ~= ADDON_VERSION then
+            local german = GetLocale and GetLocale() == "deDE"
+            Print((german and "Neu in v%s. Öffne die Neuigkeiten mit /rxpnav news." or
+                "New in v%s. Open the release notes with /rxpnav news."):format(ADDON_VERSION))
+            RXPNavigatorDB.newsNotifiedVersion = ADDON_VERSION
+        end
     elseif event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "PLAYER_ENTERING_WORLD"
         or event == "PLAYER_DEAD" or event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST"
         or event == "CORPSE_IN_RANGE" or event == "CORPSE_OUT_OF_RANGE" then
@@ -4266,9 +4348,14 @@ Navigator:SetScript("OnUpdate", function(self, dt)
         RefreshAll()
     end
     elapsed = elapsed + dt
-    if elapsed >= UPDATE_INTERVAL then elapsed = 0; UpdateMinimapRoute() end
+    if elapsed >= UPDATE_INTERVAL then elapsed = 0; RunNavigationUpdate("Minimap", UpdateMinimapRoute) end
     mapElapsed = mapElapsed + dt
-    if mapElapsed >= MAP_UPDATE_INTERVAL then mapElapsed = 0; UpdateWorldMapRoute() end
+    if mapElapsed >= MAP_UPDATE_INTERVAL then mapElapsed = 0; RunNavigationUpdate("World map", UpdateWorldMapRoute) end
     hudElapsed = hudElapsed + dt
-    if hudElapsed >= 0.05 then hudElapsed = 0; UpdateHUDArrow(dt) end
+    if hudElapsed >= 0.05 then hudElapsed = 0; RunNavigationUpdate("HUD", UpdateHUDArrow, dt) end
+    if profileSample then
+        profileSample.seconds = profileSample.seconds + dt
+        profileSample.frames = profileSample.frames + 1
+        if profileSample.seconds >= 30 then FinishNavigationProfile() end
+    end
 end)

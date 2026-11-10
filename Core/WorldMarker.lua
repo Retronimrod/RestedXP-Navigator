@@ -407,11 +407,7 @@ local function UpdateHeader(target)
 
     local distanceText = ""
     if type(distance) == "number" then
-        if API.FormatHUDDistance then
-            distanceText = API:FormatHUDDistance(distance)
-        else
-            distanceText = string.format(API:Localize("%d yd"), math.floor(distance + 0.5))
-        end
+        distanceText = API:FormatHUDDistance(distance)
         if area then distanceText = API:Localize("Target area") .. "\n" .. distanceText end
     end
 
@@ -812,25 +808,11 @@ function WorldMarker:GetActiveTargetDistance()
 end
 
 function WorldMarker:GetActivePingTextureKit()
-    local target = activeTarget
-    if not target or not target.element then return PING_TEXTURE_KITS.default end
-    local resolved = API.GetResolvedTarget and API:GetResolvedTarget(target.element, { ordinal = 1 }) or nil
-    local instruction = resolved and resolved.instruction or nil
-    local title = resolved and (resolved.title or resolved.instruction) or nil
-    if not title or title == "" then
-        title = API.GetTargetInstruction and API:GetTargetInstruction(target.element) or ""
-    end
-    if (not instruction or instruction == "") and API.GetTargetInstruction then
-        instruction = API:GetTargetInstruction(target.element)
-    end
-    local kit = ResolveHeaderPingKit(target, title, instruction)
-    return kit or PING_TEXTURE_KITS.default
+    return PING_TEXTURE_KITS[self:GetActiveIconKey()] or PING_TEXTURE_KITS.default
 end
 
-function WorldMarker:GetActiveIconKey()
-    local target = activeTarget
+local function ResolveActiveIconKey(target, resolved)
     if not target or not target.element then return "default" end
-    local resolved = API.GetResolvedTarget and API:GetResolvedTarget(target.element, { ordinal = 1 }) or nil
     local instruction = resolved and resolved.instruction or nil
     local title = resolved and (resolved.title or resolved.instruction) or nil
     if not title or title == "" then
@@ -842,6 +824,10 @@ function WorldMarker:GetActiveIconKey()
     return ResolveHeaderIconKey(target, title, instruction)
 end
 
+function WorldMarker:GetActiveIconKey()
+    return ResolveActiveIconKey(activeTarget, self:GetActiveResolvedTarget())
+end
+
 function WorldMarker:GetStatus()
     local db = API:GetDB()
     local resolved = self:GetActiveResolvedTarget()
@@ -849,7 +835,7 @@ function WorldMarker:GetStatus()
     local route = plan and plan.route
     local travelTitle = route and Navigator.Presentation
         and Navigator.Presentation:FormatTravelTitle(plan)
-    local iconKey = self:GetActiveIconKey()
+    local iconKey = ResolveActiveIconKey(activeTarget, resolved)
     local conversation, conversationNote
     if iconKey == "flight" and resolved then
         conversation, conversationNote = API:GetConversationHeader(resolved.element, iconKey, resolved.instruction)
@@ -871,7 +857,7 @@ function WorldMarker:GetStatus()
         activeConversationNote = conversationNote,
         activeTravelTitle = travelTitle,
         activeTransport = route and route.kind or activeTarget and API.GetTransportHint and API:GetTransportHint(activeTarget.element),
-        activePingTextureKit = self:GetActivePingTextureKit(),
+        activePingTextureKit = PING_TEXTURE_KITS[iconKey] or PING_TEXTURE_KITS.default,
         activeTargetName = travelTitle or (resolved and (resolved.targetName or resolved.title or resolved.instruction)) or nil,
         activeQuestID = resolved and resolved.questID or nil,
         activeTargetType = resolved and (resolved.genericType or resolved.type) or nil,

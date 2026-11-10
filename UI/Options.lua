@@ -437,7 +437,6 @@ local function BuildHUDPage(panel)
     MakeCheckbox(panel, page, L("hudArrow"), 18, -48, function() return db.showHUDArrow end, function(v) db.showHUDArrow=v end)
     MakeCheckbox(panel, page, L("hudLock"), 340, -48, function() return db.hudLocked end, function(v) db.hudLocked=v end)
     MakeCheckbox(panel, page, L("hudDistance"), 18, -82, function() return db.hudShowDistance end, function(v) db.hudShowDistance=v end)
-    MakeCheckbox(panel, page, L("hudETA"), 340, -82, function() return db.hudShowETA end, function(v) db.hudShowETA=v end)
 
     MakeSlider(panel, page, L("hudSize"), 18, -138, 220, 0.55, 2.0, 0.05,
         function() return db.hudSize or 1 end,

@@ -16,12 +16,6 @@ local npcTestFrame
 local visibleNameplates = {}
 local npcTestGUID, npcTestName, npcTestUntil
 
-local function FormatDistance(distance)
-    if type(distance) ~= 'number' then return '' end
-    if distance >= 1000 then return string.format('%.1f km', distance / 1000) end
-    return string.format((_G.RXPNavigatorLocale and _G.RXPNavigatorLocale:Get('%d yd')) or '%d yd', math.floor(distance + 0.5))
-end
-
 function Visual:ApplyPanelArtwork(frame, texture)
     local function CardSlice(u1,u2)
         local slice = frame:CreateTexture(nil,'BACKGROUND')
@@ -205,7 +199,7 @@ function Visual:RefreshPreview(f, settings)
     local db = settings or API:GetDB() or {}
     ApplyBeacon(f, db.showWorldMarkerBeam ~= false and 66 or 0, false, 'travel')
     f:SetScale(math.max(0.70, math.min(1.40, tonumber(db.worldMarkerScale) or 1)))
-    f.distance:SetText(FormatDistance(63))
+    f.distance:SetText(API:FormatHUDDistance(63, db))
     f.distance:SetShown(db.showWorldMarkerDistance ~= false)
     f:SetShown(db.showWorldMarkerNative == true)
 end
@@ -299,12 +293,10 @@ local function UpdateNPCTest()
     npcTestFrame:Show()
 end
 
-local function ShouldSuppressNativeSuperTrack()
+local function ShouldSuppressNativeSuperTrack(status)
     local db = API:GetDB()
     if not db or not db.enabled or db.showWorldMarkerNative ~= true or db.worldMarkerHideBlizzard == false
         or not worldFrame or not worldFrame:IsShown() then return false end
-    if not Navigator.WorldMarker or not Navigator.WorldMarker.GetStatus then return false end
-    local status = Navigator.WorldMarker:GetStatus()
     return status and status.owned == true
 end
 
@@ -358,8 +350,8 @@ local function HideNativeArtwork(owner)
     end
 end
 
-local function ApplyNativeSuppression()
-    if not ShouldSuppressNativeSuperTrack() then RestoreNativeSuppression(); return end
+local function ApplyNativeSuppression(status)
+    if not ShouldSuppressNativeSuperTrack(status) then RestoreNativeSuppression(); return end
     local face = _G.SuperTrackedFrame
     if face then
         for _, name in ipairs({'Icon', 'IconBorder', 'DistanceText', 'Arrow'}) do HideArtwork(face[name]) end
@@ -548,19 +540,19 @@ function Visual:Refresh()
     local showBeam = not clamped and not near and db.showWorldMarkerBeam ~= false
         and distance ~= nil and distance <= beamRange
     if near then
-        local detail = db.showWorldMarkerDistance ~= false and FormatDistance(distance) or ''
+        local detail = db.showWorldMarkerDistance ~= false and (distance and API:FormatHUDDistance(distance) or '') or ''
         UpdatePinpoint(f, title, objective, detail)
     end
     ApplyBeacon(f, showBeam and 215 or 0, near, action)
     f.chevrons:SetShown(near and not area and not TRANSPORT_ACTIONS[action])
-    local distanceText = FormatDistance(distance)
+    local distanceText = (distance and API:FormatHUDDistance(distance) or '')
     if f.lastDistanceText ~= distanceText then
         f.lastDistanceText = distanceText
         f.distance:SetText(distanceText)
     end
     f.distance:SetShown(not near and db.showWorldMarkerDistance ~= false and distanceText ~= "")
     f:Show()
-    ApplyNativeSuppression()
+    ApplyNativeSuppression(status)
 end
 
 local events = CreateFrame('Frame')
@@ -596,7 +588,11 @@ events:SetScript('OnUpdate', function(_, dt)
     elapsed = 0
     local ok = pcall(UpdateNPCTest)
     if not ok then ResetMarkerParent(npcTestFrame) end
+    local started = Navigator.navigationProfileActive and debugprofilestop()
     local ok2 = pcall(Visual.Refresh, Visual)
+    if started then
+        Navigator:RecordNavigationTiming("World marker", debugprofilestop() - started)
+    end
     if not ok2 then
         if worldFrame then worldFrame:Hide() end
     end
