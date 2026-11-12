@@ -17,8 +17,7 @@ local function Clean(value)
 end
 
 local function Localized(labels)
-    local locale = GetLocale and GetLocale() or "enUS"
-    return labels[locale] or labels.enUS or next(labels)
+    return API:Localize(labels.enUS)
 end
 
 local TYPE_LABELS = {

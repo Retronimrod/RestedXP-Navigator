@@ -70,9 +70,7 @@ local function OpenExternalURL(url)
 
     -- Standard Blizzard clients do not expose a general arbitrary-URL
     -- launcher to addons. Fall back to a selected/copyable URL dialog.
-    local german = GetLocale and GetLocale() == 'deDE'
-    ShowCopyDialog(url,german and 'Link kopieren (Strg+C) und im Browser öffnen'
-        or 'Copy this link (Ctrl+C) and open it in your browser')
+    ShowCopyDialog(url,T('Copy the link (Ctrl+C) and open it in your browser'))
     return false
 end
 
@@ -223,18 +221,14 @@ end
 local newsWindow
 local restoreSettingsAfterNews
 local releases = {
-    {"1.7.3", "Distance units, navigation and performance", "Entfernung, Navigation und Performance",
-        "Choose meters/kilometers or yards/miles in Navigation settings and during setup.\n\n• The navigation arrow has a gold finish and shows distance without an ETA.\n\n• The world marker reuses its resolved target, and the minimap skips redundant drawing updates.\n\n• Added this release history and an in-game update notice.",
-        "Meter/Kilometer oder Yards/Meilen in den Navigationseinstellungen und bei der Einrichtung auswählen.\n\n• Der goldene Navigationspfeil zeigt die Entfernung ohne Ankunftszeit.\n\n• Der Weltmarker verwendet die ermittelten Zieldaten erneut. Die Minikarte überspringt überflüssige Zeichenupdates.\n\n• Neuigkeiten und Update-Hinweis im Spiel hinzugefügt."},
-    {"1.7.2", "Beacon", "Leuchtstrahl",
-        "The beacon is now the only world marker design. The options and setup wizard show a live preview of the current settings.",
-        "Der Leuchtstrahl ist jetzt das einzige Weltmarker-Design. Die Einstellungen und der Assistent zeigen eine Vorschau mit den gewählten Optionen."},
-    {"1.7.1", "Waypoint icons and target header", "Wegpunkt-Symbole und Zielanzeige",
-        "Added illustrated action icons and a centered target header that grows with longer instructions. Quest progress appears below the instruction.",
-        "Neue Aktionssymbole und eine zentrierte Zielanzeige, die bei längeren Anweisungen mitwächst. Der Questfortschritt steht unter der Anweisung."},
-    {"1.7.0", "Setup and map improvements", "Einrichtung und Kartenverbesserungen",
-        "Added a setup wizard, profiles, editable HUD layout, and optional group quest announcements. World-map artwork adapts to zoom.",
-        "Einrichtungsassistent, Profile, verschiebbares HUD und optionale Questmeldungen für Gruppen hinzugefügt. Die Weltkartenanzeige passt sich dem Zoom an."},
+    {"1.7.3", "Distance units, navigation and performance",
+        "Choose distance units in settings or setup. The golden arrow shows distance. Map updates are more efficient, and release notes are available in-game."},
+    {"1.7.2", "Beacon",
+        "The beacon is the world marker design. Settings and setup show a live preview."},
+    {"1.7.1", "Waypoint icons and target header",
+        "Action icons and an adaptive target header show the instruction and quest progress."},
+    {"1.7.0", "Setup and map improvements",
+        "Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."},
 }
 
 function CC:OpenNews()
@@ -242,7 +236,6 @@ function CC:OpenNews()
     restoreSettingsAfterNews = window and window:IsShown()
     if restoreSettingsAfterNews then window:Hide() end
     if newsWindow then newsWindow:Show(); return end
-    local de = GetLocale and GetLocale() == 'deDE'
     local f = CreateFrame('Frame','RXPNavigatorNews',UIParent,'BackdropTemplate')
     newsWindow = f
     f:SetScript('OnHide',function()
@@ -271,7 +264,7 @@ function CC:OpenNews()
     Text(f,'GameFontNormalLarge',T("What's New")..' · RestedXP-Navigator',18,-20,675):SetTextColor(.95,.97,1)
     local close = CreateFrame('Button',nil,f,'UIPanelCloseButton')
     close:SetPoint('TOPRIGHT',-3,-3)
-    Text(f,'GameFontNormal',de and 'Versionen' or 'Versions',18,-76,170)
+    Text(f,'GameFontNormal','Versions',18,-76,170)
 
     local paper = CreateFrame('Frame',nil,f,'BackdropTemplate')
     paper:SetPoint('TOPLEFT',205,-72)
@@ -293,21 +286,21 @@ function CC:OpenNews()
         for n,button in ipairs(buttons) do button:SetEnabled(n ~= index) end
         local release = releases[index]
         if release then
-            local version = index == 1 and API:GetVersion() or release[1]
-            title:SetText('v'..version..' · '..release[de and 3 or 2])
-            body:SetText('• '..release[de and 5 or 4])
+            local version = release[1]
+            title:SetText('v'..version..' · '..T(release[2]))
+            body:SetText('• '..T(release[3]))
         else
-            title:SetText(de and 'Mitwirkende' or 'Contributors')
-            body:SetText(de and 'Entwicklung: Fabian (Nimri)' or 'Development: Fabian (Nimri)')
+            title:SetText(T('Contributors'))
+            body:SetText(T('Development: Fabian (Nimri)'))
         end
         child:SetHeight(math.max(1,body:GetStringHeight()+48))
         scroll:SetVerticalScroll(0)
     end
     for index,release in ipairs(releases) do
-        local version = index == 1 and API:GetVersion() or release[1]
+        local version = release[1]
         buttons[index] = Button(f,'v'..version,18,-103-(index-1)*34,167,function() Select(index) end)
     end
-    buttons[#releases+1] = Button(f,de and 'Mitwirkende' or 'Contributors',18,-253,167,function() Select(#releases+1) end)
+    buttons[#releases+1] = Button(f,'Contributors',18,-253,167,function() Select(#releases+1) end)
     Button(f,'GitHub',18,-438,110,function()
         OpenExternalURL('https://github.com/Retronimrod/RestedXP-Navigator')
     end)
@@ -413,6 +406,49 @@ local function BuildPages()
     Button(c,'Bug Report',530,-62,140,function() if API.GenerateBugReport then API:GenerateBugReport() end end)
     Text(c,'GameFontDisableSmall','Safety: no automated combat, no protected API bypasses, no restricted nameplate geometry reads, and no automatic nameplate-CVar changes.',16,-125,650):SetTextColor(unpack(MUTED))
 
+    p=NewPage('spf','Modules','Optional extensions for RestedXP-Navigator.')
+    c=Card(p,'Shortest Path Forever Bridge',nil,4,-70,700,244)
+    Text(c,'GameFontHighlightSmall','The bridge sends the active RestedXP step to Shortest Path Forever.',16,-46,650)
+    Text(c,'GameFontHighlightSmall','Shortest Path Forever by cjber calculates walking and transport routes and shows travel information in the quest tracker.',16,-70,650)
+    local spfStatus=Text(c,'GameFontHighlightSmall','',16,-112,655)
+    Button(c,'SPF on CurseForge',246,-191,205,function()
+        OpenExternalURL('https://www.curseforge.com/wow/addons/shortest-path-forever')
+    end)
+    local function SPFOption(parent,key,label,x,y)
+        local toggle=Toggle(parent,label,x,y,function()
+            local module=Navigator.SPFBridge
+            return module and module:GetOption(key)
+        end,function(value)
+            local module=Navigator.SPFBridge
+            if module then module:SetOption(key,value) end
+        end)
+        local refresh=toggle.Refresh
+        toggle.Refresh=function(self)
+            refresh(self)
+            self:SetEnabled(Navigator.SPFBridge and Navigator.SPFBridge:IsAvailable() or false)
+        end
+    end
+    SPFOption(c,'enabled','Enable SPF bridge',16,-149)
+    local preview=Button(c,'Open route preview',16,-191,210,function()
+        if Navigator.SPFBridge then Navigator.SPFBridge:OpenPreview(window) end
+    end)
+    AddRefresh(spfStatus,function(self)
+        local module=Navigator.SPFBridge
+        local ready=module and module:IsAvailable()
+        if ready then
+            self:SetText(T('Module loaded.'))
+        else
+            self:SetText(T('Enable RXP_Navigator_SPF and Shortest Path Forever in the WoW AddOns list.'))
+        end
+        preview:SetEnabled(ready and true or false)
+    end)
+
+    c2=Card(p,'Display',
+        'These options apply while the bridge is enabled.',4,-327,700,155)
+    SPFOption(c2,'hideSPFHUD','Hide SPF arrow and compass',16,-64)
+    SPFOption(c2,'hideActiveWorld','Hide active Navigator line on world map',16,-101)
+    SPFOption(c2,'hideActiveMinimap','Hide active Navigator line on minimap',360,-101)
+
     p=NewPage('info','Info','About RestedXP-Navigator, its creator and recent changes.')
     c=Card(p,'RestedXP-Navigator','Navigation companion for RestedXP Guides on WoW Forever.',4,-70,700,235)
     Text(c,'GameFontNormal','Created by',16,-62,110)
@@ -429,12 +465,10 @@ local function BuildPages()
 
     Text(c,'GameFontHighlightSmall','Built as a focused navigation layer: HUD guidance, minimap/world-map routes, Blizzard-style in-world markers and corpse-run navigation.',16,-168,650):SetTextColor(.82,.85,.90)
 
-    local german = GetLocale and GetLocale() == 'deDE'
     Button(c,SUPPORT_EMAIL,16,-197,225,function()
-        ShowCopyDialog(SUPPORT_EMAIL,german and 'Support-Adresse kopieren (Strg+C)'
-            or 'Copy the support email address (Ctrl+C)')
+        ShowCopyDialog(SUPPORT_EMAIL,T('Copy the support email address (Ctrl+C)'))
     end)
-    Button(c,german and 'CurseForge-Kommentare' or 'CurseForge comments',251,-197,230,function()
+    Button(c,'CurseForge comments',251,-197,230,function()
         OpenExternalURL(CURSEFORGE_COMMENTS_URL)
     end)
 
@@ -487,7 +521,7 @@ local function BuildWindow()
     local nav={
         {'general','General'},{'profiles','Profiles'},{'navigation','Navigation'},
         {'worldmarker','World Marker'},{'maps','Maps'},
-        {'corpse','Corpse Run'},{'advanced','Advanced'},{'info','Info'}
+        {'corpse','Corpse Run'},{'spf','Modules'},{'advanced','Advanced'},{'info','Info'}
     }
     for i,v in ipairs(nav) do SidebarButton(f.sidebar,v[1],v[2],i) end
     Button(f.sidebar,'Setup wizard',12,-490,188,function() if Navigator.SetupWizard then Navigator.SetupWizard:Open() end end)

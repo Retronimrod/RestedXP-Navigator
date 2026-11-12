@@ -115,10 +115,23 @@ local BEACON_ACTIONS = {
     train    = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_train',
     dungeon  = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_dungeon',
     plunder  = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_plunder',
+    escort   = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_escort',
     useitem  = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_useitem',
     default  = 'Interface\\Icons\\INV_Misc_Map_01',
 }
 local TRANSPORT_ACTIONS = { flight=true, zeppelin=true, boat=true }
+
+local function EscortText(status)
+    for _, field in ipairs({'activeGuideAction', 'activeInstruction', 'activeObjective', 'activeTargetName'}) do
+        local value = status[field]
+        if type(value) == 'string' then
+            local text = value:lower()
+            if text:match('%f[%a]eskortier%a*%f[%A]') or text:match('%f[%a]escort%a*%f[%A]') then
+                return (value:gsub('%s*:?%s*%d+%s*/%s*%d+%s*$', ''))
+            end
+        end
+    end
+end
 
 local function GetBeaconAction(status)
     if status.activeIconKey == 'corpse' then return 'corpse' end
@@ -131,6 +144,7 @@ local function GetBeaconAction(status)
         local guideAction = status.activeGuideAction or status.activeInstruction
         if API:IsItemUseInstruction(guideAction) then return 'useitem' end
         if API:IsKillInstruction(guideAction) then return 'kill' end
+        if EscortText(status) then return 'escort' end
         local lower = (guideAction or ''):lower()
         if lower:match('^plündert?%s') or lower:match('^pluendert?%s')
             or lower:match('^loot%s') then return 'plunder' end
@@ -140,6 +154,8 @@ local function GetBeaconAction(status)
     if instruction:find('read the',1,true) or instruction:find('read book',1,true)
         or instruction:find('lies das',1,true) or instruction:find('lies die',1,true) then return 'book' end
     if action == 'default' or not BEACON_ACTIONS[action] then
+        if status.activeTargetType == 'kill' then return 'kill' end
+        if status.activeTargetType == 'loot' then return 'loot' end
         if status.activeTargetType == 'vendor' then return 'vendor' end
         if status.activeTargetType == 'talk'
             or instruction:match('^sprich mit ') or instruction:match('^rede mit ')
@@ -406,13 +422,13 @@ end
 
 local function GetPinpointContent(status, action)
     if action == 'corpse' then return API:Localize('Corpse'), '', false end
-    local area = action == 'loot' or action == 'kill' or action == 'useitem' or action == 'plunder'
+    local area = action == 'loot' or action == 'kill' or action == 'useitem' or action == 'plunder' or action == 'escort'
         or status.activeTargetType == 'loot' or status.activeTargetType == 'kill'
     if status.activeTravelTitle then return status.activeTravelTitle, '', false end
     local instruction = status.activeInstruction
     local counter = instruction and instruction:match('%d+%s*/%s*%d+%s*$') and instruction or nil
     area = area or counter ~= nil or status.activeGuideAction ~= nil
-    local title = status.activeGuideAction or (not counter and instruction or nil)
+    local title = (action == 'escort' and EscortText(status)) or status.activeGuideAction or (not counter and instruction or nil)
     local objective = area and (status.activeObjective or counter or status.activeItemName) or nil
     if not title or title == '' then
         title = status.activeTargetName

@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.3"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.4"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -154,9 +154,6 @@ local defaults = {
     layoutHeaderX = -1,
     layoutHeaderY = -1,
     layoutHeaderScale = 1,
-    layoutGroupX = -1,
-    layoutGroupY = -1,
-    layoutGroupScale = 1,
 
     questChatProgress = true,
     questChatCompletion = true,
@@ -1542,6 +1539,7 @@ local function DetectStepType(element)
     if combined:find("kill",1,true) or combined:find("slay",1,true) or combined:find("defeat",1,true) or combined:find("töte",1,true) or combined:find("toete",1,true) then return "kill" end
     if combined:find("loot",1,true) or combined:find("collect",1,true) or combined:find("gather",1,true) or combined:find("sammel",1,true) or combined:find("plünder",1,true) or combined:find("pluender",1,true) then return "loot" end
     if combined:find("talk",1,true) or combined:find("speak",1,true) or combined:find("sprich",1,true) or combined:find("rede mit",1,true) then return "talk" end
+    if tag == "mob" or tag == "kill" then return "kill" end
     return nil
 end
 
@@ -4022,9 +4020,8 @@ function Navigator.API:GetConversationHeader(element, action, instruction)
         npc = note:match("^(.+) patrouilliert%s") or note:match("^(.+) patrols%s")
     end
     if not npc then return nil, note end
-    local german = GetLocale and GetLocale() == "deDE"
     if action == "talk" or learnFlight then
-        return (german and "Sprich mit " or "Talk to ") .. npc, learnFlight and instruction or note
+        return L("Talk to %s"):format(npc), learnFlight and instruction or note
     end
 
     local questID = FindQuestID(element)
@@ -4318,9 +4315,7 @@ Navigator:SetScript("OnEvent", function(self, event, arg1)
         RefreshAll()
         Print(L("loaded") .. " (v" .. ADDON_VERSION .. " RestedXP-Navigator). /rxpnav options")
         if RXPNavigatorDB.newsNotifiedVersion ~= ADDON_VERSION then
-            local german = GetLocale and GetLocale() == "deDE"
-            Print((german and "Neu in v%s. Öffne die Neuigkeiten mit /rxpnav news." or
-                "New in v%s. Open the release notes with /rxpnav news."):format(ADDON_VERSION))
+            Print(L("New in v%s. Open the release notes with /rxpnav news."):format(ADDON_VERSION))
             RXPNavigatorDB.newsNotifiedVersion = ADDON_VERSION
         end
     elseif event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "PLAYER_ENTERING_WORLD"

@@ -29,8 +29,7 @@ local LABELS = {
 }
 
 local function L(labels)
-    local locale = GetLocale and GetLocale() or "enUS"
-    return labels and (labels[locale] or labels.enUS) or nil
+    return labels and API:Localize(labels.enUS) or nil
 end
 
 local function Clean(value)
@@ -203,12 +202,12 @@ function Resolver:ShowTooltip(owner, descriptor, distance)
     if descriptor.typeLabel then GameTooltip:AddLine(descriptor.typeLabel, 0.45, 0.85, 1.00) end
     if descriptor.instruction and descriptor.instruction ~= descriptor.name then GameTooltip:AddLine(descriptor.instruction, 1, 1, 1, true) end
     if descriptor.objective then
-        local label = (GetLocale and GetLocale() == "deDE") and "Fortschritt: " or "Progress: "
+        local label = API:Localize("Progress") .. ": "
         GameTooltip:AddLine(label .. descriptor.objective, 0.65, 0.95, 0.65, true)
     end
     if type(distance) == "number" then
-        local label = (GetLocale and GetLocale() == "deDE") and "Entfernung: " or "Distance: "
-        GameTooltip:AddLine(label .. tostring(math.floor(distance + 0.5)) .. " yd", 0.75, 0.82, 1.00)
+        local label = API:Localize("Distance") .. ": "
+        GameTooltip:AddLine(label .. API:FormatHUDDistance(distance), 0.75, 0.82, 1.00)
     end
     GameTooltip:Show()
 end

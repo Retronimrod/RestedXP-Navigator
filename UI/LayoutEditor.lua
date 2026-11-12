@@ -6,7 +6,6 @@ Navigator.LayoutEditor = Layout
 local definitions = {
     {id='HUD', title='Navigation Arrow', width=190, height=136},
     {id='Header', title='Target header', width=330, height=44},
-    {id='Group', title='Group markers', width=330, height=28},
 }
 local working, baseline, owner, panel, selected, ui = nil, nil, nil, nil, 'HUD', {}
 local applying, pending = false, false
@@ -258,7 +257,6 @@ events:SetScript('OnEvent',function(_,event)
     if event=='PLAYER_LOGIN' then
         if _G.RXPNavigatorHUDArrow then Layout:Register('HUD',_G.RXPNavigatorHUDArrow) end
         if _G.RXPNavigatorWorldMarkerHeader then Layout:Register('Header',_G.RXPNavigatorWorldMarkerHeader) end
-        if _G.RXPNavigatorGroupMarkers then Layout:Register('Group',_G.RXPNavigatorGroupMarkers) end
     end
     Layout:ApplyAll()
     if working then Layout:RefreshControls() end

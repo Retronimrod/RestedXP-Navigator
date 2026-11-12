@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: RestedXP-Navigator: Shortest Path Bridge
+## Notes: Hands the active Navigator objective to Shortest Path Forever.
+## Version: 0.3.4
+## Dependencies: RXP_Navigator, ShortestPathForever
+## SavedVariables: RXPNavigatorSPFDB
+
+MapRoutes.lua
+Bridge.lua
+RoutePreview.lua
