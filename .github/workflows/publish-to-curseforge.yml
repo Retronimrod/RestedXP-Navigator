@@ -77,8 +77,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/RXP_Navigator"
           cp RXP_Navigator.toc "$RUNNER_TEMP/RXP_Navigator/"
           cp -R Core UI Map Debug Docs Media "$RUNNER_TEMP/RXP_Navigator/"
+          rm -f "$RUNNER_TEMP/RXP_Navigator/UI/GroupMarkers.lua"
+          rm -rf "$RUNNER_TEMP/RXP_Navigator_SPF"
+          cp -R RXP_Navigator_SPF "$RUNNER_TEMP/RXP_Navigator_SPF"
           cd "$RUNNER_TEMP"
-          zip -qr "${{ steps.vars.outputs.asset }}" RXP_Navigator
+          zip -qr "${{ steps.vars.outputs.asset }}" RXP_Navigator RXP_Navigator_SPF
+          unzip -tq "${{ steps.vars.outputs.asset }}"
 
       - name: Create GitHub release
         shell: bash
