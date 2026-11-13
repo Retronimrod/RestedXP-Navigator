@@ -1,6 +1,10 @@
 -- UTF-8 UI translations. Source keys remain English; game data is never translated.
 local dictionaries = {}
 dictionaries.enUS = {
+    ["Shortest Path Forever API update"] = "Shortest Path Forever API update",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls.",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment.",
+    ["Do not show this message again"] = "Do not show this message again",
     ["Shortest Path Forever Bridge"] = "Shortest Path Forever Bridge",
     ["Target area"] = "Target area",
     ["Beacon"] = "Beacon",
@@ -422,6 +426,10 @@ dictionaries.enUS = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom.",
 }
 dictionaries.deDE = {
+    ["Shortest Path Forever API update"] = "Update für Shortest Path Forever",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "Die Bridge unterstützt jetzt SPF-API v2. Der gesperrte Schalter und die Probleme mit den Anzeigeoptionen sollten damit behoben sein.",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "Tritt der Fehler weiterhin auf? Öffne Erweitert > Fehlerbericht und füge den kopierten Bericht deinem CurseForge-Kommentar bei.",
+    ["Do not show this message again"] = "Diese Meldung nicht mehr anzeigen",
     ["Shortest Path Forever Bridge"] = "Shortest Path Forever Bridge",
     ["Target area"] = "Zielgebiet",
     ["Beacon"] = "Leuchtstrahl",
@@ -843,6 +851,10 @@ dictionaries.deDE = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "Neu sind Einrichtungsassistent, Profile, ein verschiebbares HUD, optionale Questmeldungen für Gruppen und eine Weltkarte, die sich an den Zoom anpasst.",
 }
 dictionaries.frFR = {
+    ["Shortest Path Forever API update"] = "Mise à jour de l’API de Shortest Path Forever",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "La passerelle prend désormais en charge l’API v2 de SPF. Son bouton d’activation et ses réglages d’affichage devraient de nouveau fonctionner.",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "Le problème persiste ? Ouvrez Avancé > Rapport de bug, copiez le rapport et ajoutez-le à votre commentaire sur CurseForge.",
+    ["Do not show this message again"] = "Ne plus afficher ce message",
     ["Shortest Path Forever Bridge"] = "Passerelle Shortest Path Forever",
     ["Target area"] = "Zone de l’objectif",
     ["Beacon"] = "Balise lumineuse",
@@ -1264,6 +1276,10 @@ dictionaries.frFR = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "Ajout de l’assistant, des profils, d’une interface déplaçable, d’annonces de quête facultatives et d’éléments de carte adaptés au zoom.",
 }
 dictionaries.esES = {
+    ["Shortest Path Forever API update"] = "Actualización de la API de Shortest Path Forever",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "El módulo ya es compatible con la API v2 de SPF. El interruptor de activación y las opciones de visualización deberían volver a funcionar.",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "¿Sigue el problema? Abre Avanzado > Informe de errores, copia el informe e inclúyelo en tu comentario en CurseForge.",
+    ["Do not show this message again"] = "No volver a mostrar este mensaje",
     ["Shortest Path Forever Bridge"] = "Integración con Shortest Path Forever",
     ["Target area"] = "Zona del objetivo",
     ["Beacon"] = "Baliza",
@@ -1685,6 +1701,10 @@ dictionaries.esES = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "Se añadieron el asistente, los perfiles, una interfaz editable, avisos opcionales de misión en grupo y elementos del mapa que se adaptan al zoom.",
 }
 dictionaries.itIT = {
+    ["Shortest Path Forever API update"] = "Aggiornamento dell’API di Shortest Path Forever",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "Il modulo ora supporta l’API v2 di SPF. L’interruttore di attivazione e le opzioni di visualizzazione dovrebbero funzionare di nuovo.",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "Il problema persiste? Apri Avanzate > Segnalazione errori, copia il rapporto e includilo nel tuo commento su CurseForge.",
+    ["Do not show this message again"] = "Non mostrare più questo messaggio",
     ["Shortest Path Forever Bridge"] = "Integrazione Shortest Path Forever",
     ["Target area"] = "Area obiettivo",
     ["Beacon"] = "Faro",
@@ -2106,6 +2126,10 @@ dictionaries.itIT = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "Aggiunti configurazione, profili, interfaccia modificabile, avvisi missione di gruppo facoltativi ed elementi della mappa adattati allo zoom.",
 }
 dictionaries.ptBR = {
+    ["Shortest Path Forever API update"] = "Atualização da API do Shortest Path Forever",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "O módulo agora é compatível com a API v2 do SPF. O botão de ativação e as opções de exibição devem voltar a funcionar.",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "O problema continua? Abra Avançado > Relatório de erro, copie o relatório e inclua-o no seu comentário no CurseForge.",
+    ["Do not show this message again"] = "Não mostrar esta mensagem novamente",
     ["Shortest Path Forever Bridge"] = "Integração com Shortest Path Forever",
     ["Target area"] = "Área do objetivo",
     ["Beacon"] = "Farol",
@@ -2527,6 +2551,10 @@ dictionaries.ptBR = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "Inclui assistente, perfis, HUD editável, avisos opcionais de missão em grupo e elementos do mapa que se adaptam ao zoom.",
 }
 dictionaries.ruRU = {
+    ["Shortest Path Forever API update"] = "Обновление API Shortest Path Forever",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "Модуль теперь поддерживает API v2 SPF. Переключатель модуля и настройки отображения должны снова работать.",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "Проблема осталась? Откройте «Дополнительно» > «Отчёт об ошибке», скопируйте отчёт и добавьте его в комментарий на CurseForge.",
+    ["Do not show this message again"] = "Больше не показывать это сообщение",
     ["Shortest Path Forever Bridge"] = "Интеграция с Shortest Path Forever",
     ["Target area"] = "Область цели",
     ["Beacon"] = "Световой маяк",
@@ -2948,6 +2976,10 @@ dictionaries.ruRU = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "Добавлены мастер, профили, редактируемый интерфейс, оповещения о заданиях для группы и масштабируемые элементы карты.",
 }
 dictionaries.koKR = {
+    ["Shortest Path Forever API update"] = "Shortest Path Forever API 업데이트",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "이제 브리지가 SPF API v2를 지원합니다. 잠긴 활성화 버튼과 표시 설정이 다시 작동할 것입니다.",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "문제가 계속되면 고급 > 버그 보고서를 열고 보고서를 복사하여 CurseForge 댓글에 첨부해 주세요.",
+    ["Do not show this message again"] = "이 메시지를 다시 표시하지 않기",
     ["Shortest Path Forever Bridge"] = "Shortest Path Forever 브리지",
     ["Target area"] = "목표 지역",
     ["Beacon"] = "빛 기둥",
@@ -3369,6 +3401,10 @@ dictionaries.koKR = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "설정 마법사, 프로필, 편집 가능한 HUD, 선택형 파티 퀘스트 알림과 확대 수준에 맞춰 조정되는 지도 요소가 추가되었습니다.",
 }
 dictionaries.zhCN = {
+    ["Shortest Path Forever API update"] = "Shortest Path Forever API 更新",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "桥接模块现已支持 SPF API v2。启用开关和显示设置应该可以恢复正常。",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "如果问题仍然存在，请打开“高级”>“错误报告”，复制报告并附在 CurseForge 评论中。",
+    ["Do not show this message again"] = "不再显示此消息",
     ["Shortest Path Forever Bridge"] = "Shortest Path Forever 桥接",
     ["Target area"] = "目标区域",
     ["Beacon"] = "光柱",
@@ -3790,6 +3826,10 @@ dictionaries.zhCN = {
     ["Added setup, profiles, an editable HUD, optional group quest announcements and map artwork that adapts to zoom."] = "新增设置向导、配置方案、可编辑界面、可选队伍任务通知及随缩放调整的地图图形。",
 }
 dictionaries.zhTW = {
+    ["Shortest Path Forever API update"] = "Shortest Path Forever API 更新",
+    ["The bridge now supports SPF API v2. This should fix the locked bridge switch and restore its display controls."] = "橋接模組現已支援 SPF API v2。啟用開關與顯示設定應可恢復正常。",
+    ["Still having trouble? Open Advanced > Bug Report, copy the report, and include it in your CurseForge comment."] = "如果問題仍然存在，請開啟「進階」>「錯誤報告」，複製報告並附在 CurseForge 留言中。",
+    ["Do not show this message again"] = "不再顯示此訊息",
     ["Shortest Path Forever Bridge"] = "Shortest Path Forever 橋接",
     ["Target area"] = "目標區域",
     ["Beacon"] = "光柱",

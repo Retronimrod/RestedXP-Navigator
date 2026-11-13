@@ -402,7 +402,7 @@ local function BuildPages()
     c=Card(p,'Diagnostics','Troubleshooting tools that do not alter Blizzard nameplate CVars.',4,-70,700,215)
     Button(c,'NPC Anchor Test',16,-62,160,function() if Navigator.WorldMarkerVisual then Navigator.WorldMarkerVisual:StartNPCTest('target') end end)
     Button(c,'Stop NPC Test',190,-62,150,function() if Navigator.WorldMarkerVisual then Navigator.WorldMarkerVisual:StopNPCTest() end end)
-    Button(c,'Map Diagnostics',355,-62,160,function() if API.PrintMapDiagnostics then API:PrintMapDiagnostics(true) end end)
+    Button(c,'Map Diagnostics',355,-62,160,function() if API.PrintMapDiagnostics then API:PrintMapDiagnostics(true); API:ShowInspectorExport() end end)
     Button(c,'Bug Report',530,-62,140,function() if API.GenerateBugReport then API:GenerateBugReport() end end)
     Text(c,'GameFontDisableSmall','Safety: no automated combat, no protected API bypasses, no restricted nameplate geometry reads, and no automatic nameplate-CVar changes.',16,-125,650):SetTextColor(unpack(MUTED))
 
@@ -425,7 +425,9 @@ local function BuildPages()
         local refresh=toggle.Refresh
         toggle.Refresh=function(self)
             refresh(self)
-            self:SetEnabled(Navigator.SPFBridge and Navigator.SPFBridge:IsAvailable() or false)
+            local module = Navigator.SPFBridge
+            local canDisable = key == 'enabled' and module and module:GetOption('enabled')
+            self:SetEnabled(module and (module:IsAvailable() or canDisable) or false)
         end
     end
     SPFOption(c,'enabled','Enable SPF bridge',16,-149)
@@ -437,10 +439,12 @@ local function BuildPages()
         local ready=module and module:IsAvailable()
         if ready then
             self:SetText(T('Module loaded.'))
+        elseif module then
+            self:SetText('SPF: ' .. T('Route API unavailable.'))
         else
             self:SetText(T('Enable RXP_Navigator_SPF and Shortest Path Forever in the WoW AddOns list.'))
         end
-        preview:SetEnabled(ready and true or false)
+        preview:SetEnabled(module and module.CanPreview and module:CanPreview() or false)
     end)
 
     c2=Card(p,'Display',

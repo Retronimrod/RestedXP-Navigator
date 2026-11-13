@@ -7,7 +7,7 @@ local kinds = {accept = "pickup", turnin = "turnin", kill = "objective", loot = 
 
 local function Router()
     local api = ShortestPathForever and ShortestPathForever.API
-    if api and api.version == 1 and type(api.NavigateRoute) == "function"
+    if api and (api.version == 1 or api.version == 2) and type(api.NavigateRoute) == "function"
         and type(api.Cancel) == "function" and type(api.CurrentStop) == "function"
         and type(api.Active) == "function" then return api end
 end
@@ -81,11 +81,13 @@ local function SyncTarget()
     if api.NavigateRoute(owner, {stop}) then submitted = key end
 end
 
+bridge.GetRouter = Router
+
 local function Sync()
     SyncTarget()
     local settings = navigator and navigator:GetDB()
     local db = RXPNavigatorSPFDB
-    local enabled = db and db.enabled and settings and settings.enabled
+    local enabled = Router() and db and db.enabled and settings and settings.enabled
     bridge.UpdateMapRoutes(enabled and db.hideActiveWorld ~= false, enabled and db.hideActiveMinimap ~= false)
 end
 
@@ -94,6 +96,11 @@ local controls = {}
 
 function controls:IsAvailable()
     return Router() ~= nil
+end
+
+function controls:CanPreview()
+    local api = Router()
+    return api and type(api.EstimateDetail) == "function"
 end
 
 function controls:GetOption(key)

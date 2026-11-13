@@ -12,6 +12,62 @@ local function GetMapTypeName(mapType)
     return names[tonumber(mapType)] or tostring(mapType or "?")
 end
 
+local function PrintAddonState(addon)
+    local getInfo = C_AddOns and C_AddOns.GetAddOnInfo or GetAddOnInfo
+    local getMetadata = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+    local isLoaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
+    local name, _, _, loadable, reason
+    if getInfo then name, _, _, loadable, reason = getInfo(addon) end
+    local version = getMetadata and getMetadata(addon, "Version")
+    Print(("%s: installed=%s version=%s loaded=%s loadable=%s reason=%s"):format(
+        addon, tostring(name ~= nil or version ~= nil), tostring(version), tostring(isLoaded and isLoaded(addon)),
+        tostring(loadable), tostring(reason)))
+end
+
+local function PrintSPFDiagnostics()
+    Print("=== Shortest Path Forever diagnostics ===")
+    if GetBuildInfo then
+        local version, build, _, interface = GetBuildInfo()
+        Print(("Client: %s build=%s interface=%s locale=%s"):format(
+            tostring(version), tostring(build), tostring(interface), tostring(GetLocale and GetLocale())))
+    end
+    PrintAddonState("RXP_Navigator_SPF")
+    PrintAddonState("ShortestPathForever")
+    PrintAddonState("ForeverCore")
+    PrintAddonState("RXPGuides")
+
+    local bridge = Navigator.SPFBridge
+    local api = ShortestPathForever and ShortestPathForever.API
+    Print(("Bridge registered=%s compatible=%s API version=%s minor=%s"):format(
+        tostring(bridge ~= nil), tostring(bridge and bridge:IsAvailable() or false),
+        tostring(api and api.version), tostring(api and api.minor)))
+    if api then
+        for _, name in ipairs({"NavigateRoute", "Cancel", "CurrentStop", "Active", "Journey", "EstimateDetail"}) do
+            Print("SPF API " .. name .. ": " .. tostring(type(api[name]) == "function"))
+        end
+    end
+    local saved = _G.RXPNavigatorSPFDB
+    for _, key in ipairs({"enabled", "hideSPFHUD", "hideActiveWorld", "hideActiveMinimap"}) do
+        local value
+        if bridge then value = bridge:GetOption(key)
+        elseif saved then value = saved[key] end
+        Print("Bridge " .. key .. ": " .. tostring(value))
+    end
+    local settings = Settings and Settings.GetSetting
+    if settings then
+        for _, key in ipairs({"arrow", "compass", "journeyTracker", "tracker", "mapLine", "minimapLine"}) do
+            local setting = settings("ShortestPathForever_" .. key)
+            if setting then Print("SPF setting " .. key .. ": " .. tostring(setting:GetValue())) end
+        end
+    end
+    if api and bridge and bridge:IsAvailable() then
+        local activeOK, active = pcall(api.Active)
+        local stopOK, stop, reason = pcall(api.CurrentStop, "RXP_Navigator_SPF")
+        Print("SPF guidance active: " .. tostring(activeOK and active == true))
+        Print("Bridge-owned stop: " .. (stopOK and (tostring(stop) .. " reason=" .. tostring(reason)) or "API error"))
+    end
+end
+
 function Navigator.Diagnostics:PrintMapDiagnostics(captureOnly)
     if captureOnly then API:BeginInspectorCapture("map diagnostics") end
     Print("=== RestedXP-Navigator Map Diagnostics ===")
@@ -70,6 +126,7 @@ function Navigator.Diagnostics:PrintMapDiagnostics(captureOnly)
     local db = API:GetDB()
     Print("Minimap enabled: " .. tostring(db and db.showMinimap) .. " | World map enabled: " .. tostring(db and db.showWorldMap) .. " | HUD: " .. tostring(db and db.showHUDArrow))
     Print("Future goals: +" .. tostring(db and db.futureGoals or 0))
+    PrintSPFDiagnostics()
     if captureOnly then API:EndInspectorCapture() end
 end
 

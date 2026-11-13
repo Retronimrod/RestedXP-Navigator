@@ -1,3 +1,4 @@
+local _, bridge = ...
 local window, title, content, scroll, child
 local returnWindow
 local function T(text) return RXPNavigator.API:Localize(text) end
@@ -53,8 +54,8 @@ end
 
 function RXPNavigatorSPFPreview(settingsWindow)
     local navigator = RXPNavigator.API
-    local api = ShortestPathForever and ShortestPathForever.API
-    if not api or api.version ~= 1 or type(api.EstimateDetail) ~= "function" then
+    local api = bridge.GetRouter()
+    if not api or type(api.EstimateDetail) ~= "function" then
         navigator:Print("SPF: " .. T("Route API unavailable."))
         return
     end

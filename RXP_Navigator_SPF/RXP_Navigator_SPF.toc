@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: RestedXP-Navigator: Shortest Path Bridge
 ## Notes: Hands the active Navigator objective to Shortest Path Forever.
-## Version: 0.3.4
+## Version: 0.3.5
 ## Dependencies: RXP_Navigator, ShortestPathForever
 ## SavedVariables: RXPNavigatorSPFDB
 

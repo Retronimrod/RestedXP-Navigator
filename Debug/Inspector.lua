@@ -44,6 +44,11 @@ function Navigator.Debug:ShowExport()
         f:SetSize(760, 520)
         f:SetPoint("CENTER")
         f:SetFrameStrata("DIALOG")
+        f:SetScript("OnHide", function()
+            local settings = f.returnWindow
+            f.returnWindow = nil
+            if settings then settings:Show() end
+        end)
         f:SetClampedToScreen(true)
         if Navigator.UI then Navigator.UI:Window(f,760,520)
         elseif f.SetBackdrop then
@@ -89,7 +94,13 @@ function Navigator.Debug:ShowExport()
         self.exportFrame = f
     end
     self.exportFrame.edit:SetText(self:GetExportText())
+    local settings = _G.RXPNavigatorControlCenter
+    if settings and settings:IsShown() then
+        self.exportFrame.returnWindow = settings
+        settings:Hide()
+    end
     self.exportFrame:Show()
+    self.exportFrame:Raise()
     self.exportFrame.edit:SetFocus()
     self.exportFrame.edit:HighlightText()
 end
