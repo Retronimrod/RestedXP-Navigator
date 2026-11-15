@@ -54,7 +54,8 @@ function Resolver:Resolve(element, context)
     local transportHint = API:GetTransportHint(element)
     local targetType = InferSpecificType(element, genericType, transportHint)
     local instruction = Clean(model.instruction or API:GetTargetInstruction(element))
-    local objective = Clean(API:GetQuestObjectiveText(element))
+    local objectiveText, objectiveType = API:GetQuestObjectiveText(element)
+    local objective = Clean(objectiveText)
     local targetName = Clean(model.targetName or model.itemName)
     local stepIndex = tonumber(model.stepIndex or element.rxpNavigatorStepIndex)
     local mapID, x, y = model.mapID, model.x, model.y
@@ -96,6 +97,7 @@ function Resolver:Resolve(element, context)
         title = title,
         instruction = instruction,
         objective = objective,
+        objectiveType = objectiveType,
         questID = model.questID,
         objectiveIndex = model.objectiveIndex,
         objectiveMax = model.objectiveMax,

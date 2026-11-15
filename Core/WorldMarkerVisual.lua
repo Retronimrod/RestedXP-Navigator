@@ -103,7 +103,7 @@ local BEACON_ACTIONS = {
     talk     = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_talk',
     flight   = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_flight',
     zeppelin = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_zeppelin',
-    boat     = 'Interface\\Icons\\INV_Misc_Map_01',
+    boat     = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_boat',
     kill     = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_kill',
     loot     = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_loot',
     vendor   = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_vendor',
@@ -133,12 +133,25 @@ local function EscortText(status)
     end
 end
 
+local function IsKurzenUniformObjective(status)
+    -- A guide can expose only the progress text, without an objective type.
+    if status.activeQuestID and status.activeQuestID ~= 97047 then return false end
+    local objective = status.activeObjective or status.activeInstruction or ''
+    local name = objective:match('^%s*(.-)%s*:%s*%d+%s*/%s*%d+%s*$')
+    if not name then return false end
+    local uniform = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(216617)
+    return name == uniform or name == 'Kurzens Kämpferuniform' or name == "Kurzen Fighter's Uniform"
+end
+
 local function GetBeaconAction(status)
     if status.activeIconKey == 'corpse' then return 'corpse' end
     local transport = status.activeTransport
-    if transport == 'Zeppelin' then return 'zeppelin' end
-    if transport == 'Boat' or transport == 'Ship' then return 'boat' end
-    if transport == 'Flight' or transport == 'Flight Path' then return 'flight' end
+    if type(transport) == 'string' then
+        transport = transport:lower()
+        if transport == 'zeppelin' then return 'zeppelin' end
+        if transport == 'boat' or transport == 'ship' then return 'boat' end
+        if transport == 'flight' or transport == 'flight path' then return 'flight' end
+    end
     local action = status.activeIconKey
     if action ~= 'accept' and action ~= 'turnin' then
         local guideAction = status.activeGuideAction or status.activeInstruction
@@ -156,6 +169,13 @@ local function GetBeaconAction(status)
     if action == 'default' or not BEACON_ACTIONS[action] then
         if status.activeTargetType == 'kill' then return 'kill' end
         if status.activeTargetType == 'loot' then return 'loot' end
+        if status.activeObjectiveType == 'item' then return 'loot' end
+        if status.activeObjectiveType == 'monster' then return 'kill' end
+        if IsKurzenUniformObjective(status) then return 'loot' end
+        -- Some guide steps supply only a localized progress counter.
+        local objective = (status.activeObjective or ''):lower()
+        if objective:match('^gesammel') or objective:match('^collected%s')
+            or objective:match('%scollected%s*:') then return 'loot' end
         if status.activeTargetType == 'vendor' then return 'vendor' end
         if status.activeTargetType == 'talk'
             or instruction:match('^sprich mit ') or instruction:match('^rede mit ')
@@ -426,12 +446,20 @@ local function GetPinpointContent(status, action)
         or status.activeTargetType == 'loot' or status.activeTargetType == 'kill'
     if status.activeTravelTitle then return status.activeTravelTitle, '', false end
     local instruction = status.activeInstruction
+    if instruction and instruction:match('^%s*%d+%s*$') then instruction = nil end
+    local guideAction = status.activeGuideAction
+    if guideAction and guideAction:match('^%s*%d+%s*$') then guideAction = nil end
     local counter = instruction and instruction:match('%d+%s*/%s*%d+%s*$') and instruction or nil
-    area = area or counter ~= nil or status.activeGuideAction ~= nil
-    local title = (action == 'escort' and EscortText(status)) or status.activeGuideAction or (not counter and instruction or nil)
+    area = area or counter ~= nil or guideAction ~= nil
+    local title = (action == 'escort' and EscortText(status)) or guideAction or (not counter and instruction or nil)
     local objective = area and (status.activeObjective or counter or status.activeItemName) or nil
     if not title or title == '' then
         title = status.activeTargetName
+        if title and title:match('^%s*%d+%s*$') then title = nil end
+        if not title and status.activeObjective then
+            title = status.activeObjective:match('^(.-)%s*:%s*%d+%s*/%s*%d+%s*$')
+            if title then area, objective = true, status.activeObjective end
+        end
         if area and (not title or title == '' or title == objective or title:match('%d+%s*/%s*%d+%s*$')) then
             title = API:Localize('Objective')
         end

@@ -18,7 +18,7 @@ P.transportIcons = {
     hearthstone = "Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Hearthstone.tga",
     flight = "Interface\\MINIMAP\\TRACKING\\FlightMaster",
     zeppelin = "Interface\\MINIMAP\\TRACKING\\FlightMaster",
-    boat = "Interface\\MINIMAP\\TRACKING\\FlightMaster",
+    boat = "Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_boat",
     portal = "Interface\\Icons\\Spell_Arcane_PortalOrgrimmar",
     travel = "Interface\\MINIMAP\\TRACKING\\FlightMaster",
 }

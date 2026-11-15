@@ -381,11 +381,14 @@ local function UpdateHeader(target)
             activeTargetName = title,
             activeInstruction = instruction,
             activeObjective = resolved and resolved.objective,
+            activeObjectiveType = resolved and resolved.objectiveType,
+            activeQuestID = resolved and resolved.questID,
             activeItemName = resolved and resolved.itemName,
             activeGuideAction = API:GetPinpointInstruction(target.element),
             activeTargetType = resolved and (resolved.genericType or resolved.type),
             activeIconKey = action,
-            activeTransport = route and route.kind or resolved and resolved.transport,
+            activeTransport = route and route.kind or resolved and resolved.transport
+                or API.GetTransportHint and API:GetTransportHint(target.element),
             activeTravelTitle = travelTitle,
         })
     end
@@ -863,6 +866,7 @@ function WorldMarker:GetStatus()
         activeTargetType = resolved and (resolved.genericType or resolved.type) or nil,
         activeInstruction = resolved and resolved.instruction or nil,
         activeObjective = resolved and resolved.objective or nil,
+        activeObjectiveType = resolved and resolved.objectiveType,
         activeGuideAction = resolved and API:GetPinpointInstruction(resolved.element) or nil,
         activeItemName = resolved and resolved.itemName or nil,
     }

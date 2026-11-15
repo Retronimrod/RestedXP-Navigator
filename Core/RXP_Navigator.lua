@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.5"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.10"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -766,24 +766,25 @@ local function GetTargetInstruction(element)
     -- RestedXP 4.11+ exposes purpose-built map/tooltip text on many parsed
     -- elements. Prefer those structured fields before falling back to the raw
     -- guide text. This keeps Navigator aligned with what RestedXP itself renders.
-    local candidates = { element.mapTooltip, element.tooltipText, element.hiddentext, element.text, element.rawtext }
-    for _, value in ipairs(candidates) do
-        local cleaned = CleanRXPText(value)
-        if cleaned then return cleaned end
+    local function Instruction(source)
+        for _, key in ipairs({"mapTooltip", "tooltipText", "hiddentext", "text", "rawtext"}) do
+            local cleaned = CleanRXPText(source[key])
+            if cleaned and not cleaned:match("^%d+$") then return cleaned end
+        end
     end
+    local instruction = Instruction(element)
+    if instruction then return instruction end
 
     local step = element.step
-    if step and step.elements then
-        for _, e in ipairs(step.elements) do
-            if not e.completed and not e.skip and not e.textOnly then
-                local cleaned = CleanRXPText(e.mapTooltip) or CleanRXPText(e.tooltipText) or
-                    CleanRXPText(e.hiddentext) or CleanRXPText(e.text) or CleanRXPText(e.rawtext)
-                if cleaned then return cleaned end
+    if step then
+        for _, sibling in ipairs(step.elements or {}) do
+            if not sibling.completed and not sibling.skip and not sibling.textOnly then
+                instruction = Instruction(sibling)
+                if instruction then return instruction end
             end
         end
-        local stepText = CleanRXPText(step.mapTooltip) or CleanRXPText(step.tooltipText) or
-            CleanRXPText(step.hiddentext) or CleanRXPText(step.text)
-        if stepText then return stepText end
+        instruction = Instruction(step)
+        if instruction then return instruction end
     end
     return "Zum RestedXP-Ziel"
 end
@@ -1621,7 +1622,7 @@ local function GetQuestObjectiveText(element)
         local index = tonumber(element[key])
         if index and objectives[index] then
             local text = CleanRXPText(objectives[index].text)
-            if text and text ~= "" then return text end
+            if text and text ~= "" then return text, objectives[index].type end
         end
     end
 
@@ -1631,22 +1632,23 @@ local function GetQuestObjectiveText(element)
     local model = Navigator.RXPData:Normalize(element)
     local instruction = GetTargetInstruction(element)
     local structuredName = model and model.targetName
-    local bestText, bestScore
+    local bestObjective, bestScore
     local incomplete = {}
     for _, objective in ipairs(objectives) do
         local text = CleanRXPText(objective and objective.text)
         local finished = objective and (objective.finished == true or objective.isFinished == true)
         if text and not finished then
-            incomplete[#incomplete + 1] = text
+            local match = {text = text, type = objective.type}
+            incomplete[#incomplete + 1] = match
             local score = ObjectiveMatchScore(instruction, text)
             if structuredName then score = math.max(score, ObjectiveMatchScore(structuredName, text) + 2) end
             if not bestScore or score > bestScore then
-                bestScore, bestText = score, text
+                bestScore, bestObjective = score, match
             end
         end
     end
-    if bestText and bestScore and bestScore > 0 then return bestText end
-    if #incomplete == 1 then return incomplete[1] end
+    if bestObjective and bestScore > 0 then return bestObjective.text, bestObjective.type end
+    if #incomplete == 1 then return incomplete[1].text, incomplete[1].type end
 
     -- With several unmatched objectives it is safer to show no extra line than
     -- a counter for the wrong mob or item. The RXP instruction remains visible.
