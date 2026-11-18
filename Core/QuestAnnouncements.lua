@@ -138,6 +138,12 @@ function Announcer:Scan()
     local channel = Channel()
     local signature = Signature(db, channel)
     if context ~= signature then context = signature; Reset() end
+    if not channel or not db.enabled or not (db.questChatProgress or db.questChatCompletion)
+        or (Navigator.SetupWizard and Navigator.SetupWizard:IsOpen()) then
+        snapshots, queue = {}, {}
+        baseline = true
+        return
+    end
     local log = C_QuestLog
     if not log or not log.GetInfo or not log.GetNumQuestLogEntries or not log.GetLogIndexForQuestID
         or not log.GetQuestObjectives or not log.IsComplete then return end
@@ -209,10 +215,12 @@ events:SetScript('OnUpdate', function(_, dt)
     elapsed = elapsed + dt
     if elapsed < INTERVAL then return end
     elapsed = 0
+    local started = Navigator.navigationProfileActive and debugprofilestop()
     local now = GetTime()
     if dirty or now >= nextScan then
         dirty, nextScan = false, now + 1
         Announcer:Scan()
     end
     Announcer:Flush()
+    if started then Navigator:RecordNavigationTiming("Quest messages", debugprofilestop() - started) end
 end)

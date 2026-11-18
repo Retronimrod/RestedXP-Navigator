@@ -171,8 +171,10 @@ frame:SetScript("OnUpdate", function(_, dt)
     elapsed = elapsed + dt
     if elapsed < 0.5 then return end
     elapsed = 0
+    local started = RXPNavigator.navigationProfileActive and debugprofilestop()
     Sync()
     OfferActivation()
+    if started then RXPNavigator:RecordNavigationTiming("SPF bridge", debugprofilestop() - started) end
 end)
 
 SLASH_RXPNAVSPF1 = "/rxpspf"

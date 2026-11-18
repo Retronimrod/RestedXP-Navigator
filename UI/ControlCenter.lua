@@ -78,7 +78,6 @@ local function SyncDB() db = API:GetDB(); return db end
 local function RefreshAll()
     if API.SaveActiveProfile then API:SaveActiveProfile() end
     API:RefreshAll()
-    CC:Refresh()
 end
 
 local function Version()
@@ -138,10 +137,13 @@ local function Slider(parent,label,x,y,w,minv,maxv,step,getter,setter,formatter)
     local busy=false
     s:SetScript('OnValueChanged',function(self,v)
         if busy then return end
-        v=math.floor(v/step+0.5)*step; setter(v); value:SetText(formatter and formatter(v) or tostring(v)); RefreshAll()
+        v=math.floor(v/step+0.5)*step
+        setter(v)
+        value:SetText(formatter and formatter(v) or tostring(v))
+        Navigator.Options:RefreshAfterSlider()
     end)
     return AddRefresh(s,function(self)
-        busy=true; local v=getter(); self:SetValue(v); busy=false; value:SetText(formatter and formatter(v) or tostring(v))
+        busy=true; local v=math.max(minv,math.min(maxv,getter())); self:SetValue(v); busy=false; value:SetText(formatter and formatter(v) or tostring(v))
     end)
 end
 
@@ -160,7 +162,7 @@ local function EditBox(parent,x,y,w,placeholder)
     return e
 end
 
-local function ColorButton(parent,label,x,y,getter,setter)
+local function ColorButton(parent,label,x,y,getter,setter,isEnabled)
     Text(parent,'GameFontNormal',label,x,y,180)
     local b=CreateFrame('Button',nil,parent); b:SetPoint('TOPLEFT',x+190,y+3); b:SetSize(42,20)
     b.swatch=b:CreateTexture(nil,'ARTWORK'); b.swatch:SetAllPoints(); b.swatch:SetColorTexture(1,1,1,1)
@@ -174,7 +176,13 @@ local function ColorButton(parent,label,x,y,getter,setter)
         ColorPickerFrame:SetupColorPickerAndShow({r=r,g=g,b=bv,swatchFunc=changed,cancelFunc=function(prev) setter(prev.r,prev.g,prev.b); RefreshAll() end})
     end
     b:SetScript('OnClick',open)
-    return AddRefresh(b,function(self) local r,g,bv=getter(); self.swatch:SetColorTexture(r,g,bv,1) end)
+    return AddRefresh(b,function(self)
+        local r,g,bv=getter()
+        self.swatch:SetColorTexture(r,g,bv,1)
+        local enabled = not isEnabled or isEnabled()
+        self:SetEnabled(enabled)
+        self:SetAlpha(enabled and 1 or .4)
+    end)
 end
 
 local function Dropdown(parent,x,y,w,getItems,getter,setter)
@@ -221,6 +229,14 @@ end
 local newsWindow
 local restoreSettingsAfterNews
 local releases = {
+    {"1.7.18", "Performance", "Faster map lookup and cached quest data. Record a 30-second performance report under Advanced."},
+    {"1.7.17", "Target box", "The target box can be enabled or disabled under Navigation."},
+    {"1.7.16", "Navigation and settings fixes", "Localized quest headings, clearer settings and fewer HUD style updates."},
+    {"1.7.13", "Localized quest headings", "Quest pickup and turn-in headings use the client language."},
+    {"1.7.12", "Hearthstone icon", "Binding your Hearthstone uses the Hearthstone icon."},
+    {"1.7.10", "Waypoint icons and target header", "Transport and quest objective icons and waypoint titles were corrected."},
+    {"1.7.5", "Shortest Path Forever Bridge", "Updated the bridge for the new Shortest Path Forever route API."},
+    {"1.7.4", "Modules", "Added the optional Shortest Path Forever Bridge to the installation package."},
     {"1.7.3", "Distance units, navigation and performance",
         "Choose distance units in settings or setup. The golden arrow shows distance. Map updates are more efficient, and release notes are available in-game."},
     {"1.7.2", "Beacon",
@@ -298,10 +314,10 @@ function CC:OpenNews()
     end
     for index,release in ipairs(releases) do
         local version = release[1]
-        buttons[index] = Button(f,'v'..version,18,-103-(index-1)*34,167,function() Select(index) end)
+        buttons[index] = Button(f,'v'..version,18,-101-(index-1)*26,167,function() Select(index) end)
     end
-    buttons[#releases+1] = Button(f,'Contributors',18,-253,167,function() Select(#releases+1) end)
-    Button(f,'GitHub',18,-438,110,function()
+    buttons[#releases+1] = Button(f,'Contributors',18,-101-#releases*26,167,function() Select(#releases+1) end)
+    Button(f,'GitHub',205,-438,110,function()
         OpenExternalURL('https://github.com/Retronimrod/RestedXP-Navigator')
     end)
     Select(1)
@@ -352,19 +368,34 @@ local function BuildPages()
     end)
     Text(c2,'GameFontDisableSmall','Tip: create profiles such as “Leveling”, “Minimal HUD”, “Large UI” or “Streamer”. Switching a profile immediately applies the stored settings.',16,-163,650):SetTextColor(unpack(MUTED))
 
-    p=NewPage('navigation','Navigation HUD','On-screen arrow, distance and ETA guidance.')
+    p=NewPage('navigation','Navigation HUD','On-screen arrow and distance.')
     c=Card(p,'HUD Arrow','Configure the primary direction arrow.',4,-70,700,235)
     Toggle(c,'Show HUD arrow',16,-58,function() return db.showHUDArrow end,function(v) db.showHUDArrow=v end)
     Toggle(c,'Show distance',360,-58,function() return db.hudShowDistance end,function(v) db.hudShowDistance=v end)
     Toggle(c,'Lock position',360,-98,function() return db.hudLocked end,function(v) db.hudLocked=v end)
-    Slider(c,'Arrow size',16,-155,300,.55,2,.05,function() return db.hudSize or 1 end,function(v) db.hudSize=v end,function(v) return string.format('%d%%',v*100) end)
-    Slider(c,'Text size',360,-155,300,.65,1.8,.05,function() return db.hudTextSize or 1 end,function(v) db.hudTextSize=v end,function(v) return string.format('%d%%',v*100) end)
+    Slider(c,'Arrow size',16,-155,300,.55,2,.05,function() return db.hudSize or 1 end,function(v) db.hudSize=v end,function(v) return string.format('%.0f%%',v*100) end)
+    Slider(c,'Text size',360,-155,300,.70,1.60,.05,function() return db.hudTextSize or 1 end,function(v) db.hudTextSize=v end,function(v) return string.format('%.0f%%',v*100) end)
     c2=Card(p,'HUD appearance','Color used by the primary navigation arrow.',4,-320,700,125)
-    ColorButton(c2,'HUD arrow color',16,-60,function() return db.hudColorR or .08,db.hudColorG or .74,db.hudColorB or 1 end,function(r,g,b) db.hudColorR=r;db.hudColorG=g;db.hudColorB=b end)
+    local styles = {classic=API:Translate('hudStyleClassic'), compass=API:Translate('hudStyleCompass'), crystal=API:Translate('hudStyleCrystal')}
+    Text(c,'GameFontNormal',API:Translate('hudArrowStyle'),16,-94,290)
+    Dropdown(c,16,-113,250,function() return {styles.classic,styles.compass,styles.crystal} end,
+        function() return styles[db.hudArrowStyle] or styles.classic end,
+        function(label)
+            for style, text in pairs(styles) do if text == label then db.hudArrowStyle = style; break end end
+        end)
+    ColorButton(c2,'HUD arrow color',16,-60,function() return db.hudColorR or .08,db.hudColorG or .74,db.hudColorB or 1 end,
+        function(r,g,b) db.hudColorR=r;db.hudColorG=g;db.hudColorB=b end,
+        function() return not db.hudArrowStyle or db.hudArrowStyle == 'classic' end)
     Text(c2,'GameFontNormal','Distance units',360,-42,290)
     Dropdown(c2,360,-58,250,function() return {T('Meters / kilometers'),T('Yards / miles')} end,
         function() return T(db.distanceUnit == 'metric' and 'Meters / kilometers' or 'Yards / miles') end,
         function(label) db.distanceUnit = label == T('Meters / kilometers') and 'metric' or 'imperial' end)
+
+    local headerCard=Card(p,'Target box',nil,4,-460,700,105)
+    Toggle(headerCard,'Show target box',16,-53,function() return db.showWorldMarkerHeader ~= false end,function(v)
+        db.showWorldMarkerHeader=v
+        if Navigator.WorldMarker then Navigator.WorldMarker:RefreshNow() end
+    end)
 
     p=NewPage('worldmarker','World Marker','Beacon')
     c=Card(p,'Preview','Uses the same artwork and settings as your personal world marker.',4,-70,700,235)
@@ -375,9 +406,9 @@ local function BuildPages()
     Toggle(c,'Hide duplicate Blizzard marker',335,-180,function() return db.worldMarkerHideBlizzard ~= false end,function(v) db.worldMarkerHideBlizzard=v end)
 
     c2=Card(p,'Marker behavior','Marker behavior',4,-320,700,162)
-    Slider(c2,'Marker scale',16,-58,300,.70,1.40,.05,function() return db.worldMarkerScale or 1 end,function(v) db.worldMarkerScale=v end,function(v) return string.format('%d%%',v*100) end)
+    Slider(c2,'Marker scale',16,-58,300,.70,1.40,.05,function() return db.worldMarkerScale or 1 end,function(v) db.worldMarkerScale=v end,function(v) return string.format('%.0f%%',v*100) end)
     Slider(c2,'Beam activation range',360,-58,300,20,150,5,function() return db.worldMarkerBeamDistance or 65 end,function(v) db.worldMarkerBeamDistance=v end,function(v) return API:FormatHUDDistance(v) end)
-    Toggle(c2,'Show target header',16,-120,function() return db.showWorldMarkerHeader ~= false end,function(v) db.showWorldMarkerHeader=v end)
+
 
     p=NewPage('maps','Maps','Minimap and world-map route presentation.')
     c=Card(p,'Minimap','Current route and upcoming targets.',4,-70,700,205)
@@ -395,7 +426,7 @@ local function BuildPages()
     c=Card(p,'Corpse navigation','Dedicated corpse visuals keep normal navigation readable.',4,-70,700,220)
     Slider(c,'HUD skull size',16,-58,300,12,64,2,function() return db.corpseHudSkullSize or 24 end,function(v) db.corpseHudSkullSize=v end,function(v) return v..' px' end)
     Slider(c,'Route skull size',360,-58,300,8,36,1,function() return db.corpseRouteSkullSize or 14 end,function(v) db.corpseRouteSkullSize=v end,function(v) return v..' px' end)
-    Slider(c,'Skull opacity',16,-130,300,.1,1,.05,function() return db.corpseSkullAlpha or .3 end,function(v) db.corpseSkullAlpha=v end,function(v) return string.format('%d%%',v*100) end)
+    Slider(c,'Skull opacity',16,-130,300,.1,1,.05,function() return db.corpseSkullAlpha or .3 end,function(v) db.corpseSkullAlpha=v end,function(v) return string.format('%.0f%%',v*100) end)
     Slider(c,'Animation speed',360,-130,300,.2,2,.1,function() return db.corpseAnimationSpeed or .5 end,function(v) db.corpseAnimationSpeed=v end,function(v) return string.format('%.1fx',v) end)
 
     p=NewPage('advanced','Advanced','Diagnostics and explicit test tools. No protected API bypasses.')
@@ -405,6 +436,14 @@ local function BuildPages()
     Button(c,'Map Diagnostics',355,-62,160,function() if API.PrintMapDiagnostics then API:PrintMapDiagnostics(true); API:ShowInspectorExport() end end)
     Button(c,'Bug Report',530,-62,140,function() if API.GenerateBugReport then API:GenerateBugReport() end end)
     Text(c,'GameFontDisableSmall','Safety: no automated combat, no protected API bypasses, no restricted nameplate geometry reads, and no automatic nameplate-CVar changes.',16,-125,650):SetTextColor(unpack(MUTED))
+
+    Button(c,'Record performance (30 s)',310,-164,300,function()
+        SlashCmdList.RXPNAV('perf')
+    end)
+
+    Button(c,'Additional map and display settings',16,-164,275,function()
+        CC:Open('details')
+    end)
 
     p=NewPage('spf','Modules','Optional extensions for RestedXP-Navigator.')
     c=Card(p,'Shortest Path Forever Bridge',nil,4,-70,700,244)
@@ -453,6 +492,17 @@ local function BuildPages()
     SPFOption(c2,'hideActiveWorld','Hide active Navigator line on world map',16,-101)
     SPFOption(c2,'hideActiveMinimap','Hide active Navigator line on minimap',360,-101)
 
+    local details=CreateFrame('Frame',nil,window.content)
+    details:SetAllPoints(window.content)
+    details:Hide()
+    pages.details=details
+    details:SetScript('OnShow',function(self)
+        if not self.built then
+            Navigator.Options:BuildDetails(self)
+            self.built=true
+        end
+    end)
+
     p=NewPage('info','Info','About RestedXP-Navigator, its creator and recent changes.')
     c=Card(p,'RestedXP-Navigator','Navigation companion for RestedXP Guides on WoW Forever.',4,-70,700,235)
     Text(c,'GameFontNormal','Created by',16,-62,110)
@@ -484,7 +534,7 @@ local function SelectPage(key)
     activePage=key
     for k,p in pairs(pages) do p:SetShown(k==key) end
     for k,b in pairs(pageButtons) do
-        if k==key then b.bg:SetColorTexture(ACCENT[1],ACCENT[2],ACCENT[3],.20); b.label:SetTextColor(.65,.90,1)
+        if k==key or (key=='details' and k=='advanced') then b.bg:SetColorTexture(ACCENT[1],ACCENT[2],ACCENT[3],.20); b.label:SetTextColor(.65,.90,1)
         else b.bg:SetColorTexture(0,0,0,0); b.label:SetTextColor(.75,.78,.84) end
     end
 end
@@ -551,6 +601,6 @@ function CC:Toggle() local f=BuildWindow(); if f:IsShown() then f:Hide() else se
 function CC:Refresh() if window and window:IsShown() then SyncDB(); for _,r in ipairs(refreshers) do if r and r.Refresh then r:Refresh() end end end end
 
 if Navigator.Options then
-    Navigator.Options.Open=function() CC:Open() end
-    Navigator.Options.Refresh=function() CC:Refresh() end
+    local refreshBlizzard = Navigator.Options.Refresh
+    Navigator.Options.Refresh=function(self) refreshBlizzard(self); CC:Refresh() end
 end

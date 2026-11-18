@@ -39,7 +39,7 @@ local function EnsureDriver()
     tooltipOwner:SetSize(1, 1)
     tooltipOwner:Hide()
 
-    driver:SetScript("OnUpdate", function(self, dt)
+    local function UpdateHover(self, dt)
         self.elapsed = (self.elapsed or 0) + (dt or 0)
         if self.elapsed < 0.035 then return end
         self.elapsed = 0
@@ -114,6 +114,12 @@ local function EnsureDriver()
                 tooltipOwner:Hide()
             end
         end
+    end
+    driver:SetScript("OnUpdate", function(self, dt)
+        if not Navigator.navigationProfileActive then return UpdateHover(self, dt) end
+        local started = debugprofilestop()
+        UpdateHover(self, dt)
+        Navigator:RecordNavigationTiming("Route tooltip", debugprofilestop() - started)
     end)
 
     return driver

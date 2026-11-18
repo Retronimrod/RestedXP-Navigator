@@ -55,7 +55,7 @@ local function EnsureHoverDriver()
     hoverOwner:SetSize(1, 1)
     hoverOwner:Hide()
 
-    hoverDriver:SetScript("OnUpdate", function(self, dt)
+    local function UpdateHover(self, dt)
         self.elapsed = (self.elapsed or 0) + (dt or 0)
         if self.elapsed < 0.035 then return end
         self.elapsed = 0
@@ -131,6 +131,12 @@ local function EnsureHoverDriver()
                 HideOverlayTooltip()
             end
         end
+    end
+    hoverDriver:SetScript("OnUpdate", function(self, dt)
+        if not Navigator.navigationProfileActive then return UpdateHover(self, dt) end
+        local started = debugprofilestop()
+        UpdateHover(self, dt)
+        Navigator:RecordNavigationTiming("Map tooltip", debugprofilestop() - started)
     end)
 
     return hoverDriver

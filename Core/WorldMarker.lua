@@ -53,6 +53,7 @@ local PING_TEXTURE_KITS = {
     train = "Assist",
     dungeon = "OnMyWay",
     hearth = "Assist",
+    bind = "Assist",
 
     travel = "OnMyWay",
     map = "OnMyWay",
@@ -76,6 +77,10 @@ local function DetectIconStepType(target, title, instruction)
     local text = string.lower(tostring(title or "") .. " " .. tostring(instruction or ""))
 
     local guideAction = tostring(instruction or ""):lower()
+    local model = API:GetNormalizedRXPData(element)
+    local tag = model and (model.semanticTag or model.tag)
+    if tag == "home" or tag == "bindlocation" or guideAction:match("^setz%a* .-ruhestein")
+       or guideAction:match("^set .-hearthstone") then return "bind" end
     if guideAction:match("^gebt die quest .+ ab[%.!]?$")
         or guideAction:match("^gib die quest .+ ab[%.!]?$")
         or guideAction:match("^abgeben%s") then return "turnin" end
@@ -797,13 +802,23 @@ function WorldMarker:GetShareableWaypointLink()
     if ok and type(link) == "string" and link ~= "" then return link end
 end
 
+local resolvedStatusCache = {}
 function WorldMarker:GetActiveResolvedTarget()
     local target = activeTarget
     if not target or not target.element then return nil end
-    if API.GetResolvedTarget then
-        return API:GetResolvedTarget(target.element, { ordinal = 1 })
+    local element = target.element
+    local revision = Navigator.RXPData.revision
+    local questRevision = Navigator.Performance and Navigator.Performance.questRevision
+    local now = GetTime()
+    local cache = resolvedStatusCache
+    if cache.element == element and cache.revision == revision and cache.questRevision == questRevision
+        and cache.time and now >= cache.time and now - cache.time < .1 then
+        return cache.resolved
     end
-    return nil
+    local resolved = API.GetResolvedTarget and API:GetResolvedTarget(element, {ordinal = 1}) or nil
+    cache.element, cache.revision, cache.questRevision = element, revision, questRevision
+    cache.time, cache.resolved = now, resolved
+    return resolved
 end
 
 function WorldMarker:GetActiveTargetDistance()
@@ -884,5 +899,7 @@ frame:SetScript("OnUpdate", function(_, dt)
     elapsed = elapsed + (dt or 0)
     if elapsed < UPDATE_INTERVAL then return end
     elapsed = 0
+    local started = Navigator.navigationProfileActive and debugprofilestop()
     WorldMarker:RefreshNow()
+    if started then Navigator:RecordNavigationTiming("World marker tracking", debugprofilestop() - started) end
 end)

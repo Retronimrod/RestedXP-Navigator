@@ -9,7 +9,7 @@ Navigator.RXPBridge = Navigator.RXPBridge or {
 }
 
 function Navigator:QueueRXPDrivenRefresh(reason)
-    Navigator.RXPData:Invalidate()
+    if self.navigationProfileActive then self._rxpPerfMessages = (self._rxpPerfMessages or 0) + 1 end
     self._rxpEventRefreshPending = reason or true
 end
 

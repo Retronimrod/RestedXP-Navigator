@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.10"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.18"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -513,7 +513,7 @@ function Navigator.UnitPositionFallback:Resolve(preferredMapID)
     return nil
 end
 
-local function ResolvePlayerMapAndPosition(preferredMapID)
+function Navigator:ResolvePlayerMapRaw(preferredMapID)
     local candidates, seen, sources = {}, {}, {}
     local function AddCandidate(mapID, source)
         mapID = tonumber(mapID)
@@ -529,6 +529,12 @@ local function ResolvePlayerMapAndPosition(preferredMapID)
     if C_Map and C_Map.GetBestMapForUnit then
         local ok, mapID = pcall(C_Map.GetBestMapForUnit, "player")
         if ok then AddCandidate(mapID, "C_Map.GetBestMapForUnit") end
+    end
+
+    -- Accept the normal player zone before enumerating fallback map trees.
+    for _, mapID in ipairs(candidates) do
+        local x, y = GetPlayerPositionForMap(mapID)
+        if x and y then return mapID, x, y, sources[mapID] end
     end
 
     -- Some Forever map transitions / dungeon or micro maps return nil above,
@@ -606,6 +612,11 @@ local function ResolvePlayerMapAndPosition(preferredMapID)
         AddCandidate(WorldMapFrame.mapID, "WorldMapFrame.mapID")
     end
 
+    for _, mapID in ipairs(candidates) do
+        local x, y = GetPlayerPositionForMap(mapID)
+        if x and y then return mapID, x, y, sources[mapID] end
+    end
+
     -- Forever can expose only the Azeroth/world map (for example uiMapID 947)
     -- while GetBestMapForUnit() is nil. A player position cannot be queried on
     -- that world map, so as a last-resort discovery step scan its descendants.
@@ -666,6 +677,10 @@ local function ResolvePlayerMapAndPosition(preferredMapID)
         return lastPlayerMapID, lastPlayerX, lastPlayerY, "ghost grace cache"
     end
     return nil
+end
+
+local function ResolvePlayerMapAndPosition(preferredMapID)
+    return Navigator:ResolvePlayerMapRaw(preferredMapID)
 end
 
 local function GetPlayerWorld(preferredMapID)
@@ -1609,7 +1624,7 @@ local function ObjectiveMatchScore(instruction, objectiveText)
     return score
 end
 
-local function GetQuestObjectiveText(element)
+function Navigator:GetQuestObjectiveTextRaw(element)
     if not element then return nil end
     local questID = FindQuestID(element)
     if not (questID and C_QuestLog and type(C_QuestLog.GetQuestObjectives) == "function") then return nil end
@@ -1653,6 +1668,12 @@ local function GetQuestObjectiveText(element)
     -- With several unmatched objectives it is safer to show no extra line than
     -- a counter for the wrong mob or item. The RXP instruction remains visible.
     return nil
+end
+
+local function GetQuestObjectiveText(element)
+    local cache = Navigator.Performance
+    if cache then return cache:GetObjective(element) end
+    return Navigator:GetQuestObjectiveTextRaw(element)
 end
 
 local function GetMajorZoneMapID(mapID)
@@ -2123,13 +2144,6 @@ local function ApplyTheme()
     if worldMainRouteTexture then worldMainRouteTexture:SetVertexColor(lr, lg, lb, 0.98) end
     for _, a in ipairs(minimapArrows) do a:SetVertexColor(ar, ag, ab, 1) end
     if minimapEdgeArrow then minimapEdgeArrow:SetVertexColor(lr, lg, lb, 1) end
-    local hr = (db and tonumber(db.hudColorR)) or 0.08
-    local hg = (db and tonumber(db.hudColorG)) or 0.74
-    local hb = (db and tonumber(db.hudColorB)) or 1.00
-    if hudArrowTexture then
-        if IsCorpseRunMode() then hudArrowTexture:SetVertexColor(CORPSE_LINE_BRIGHT[1], CORPSE_LINE_BRIGHT[2], CORPSE_LINE_BRIGHT[3], 1)
-        else hudArrowTexture:SetVertexColor(hr, hg, hb, 1) end
-    end
     if targetDot and targetDot.center then targetDot.center:SetVertexColor(cr, cg, cb, 1) end
     if worldTargetPin and worldTargetPin.center then worldTargetPin.center:SetVertexColor(cr, cg, cb, 1) end
     for i, pin in ipairs(worldFuturePins) do
@@ -3174,17 +3188,31 @@ local function SaveHUDPosition()
     db.hudY = y or -120
 end
 
-local function ApplyHUDStyle()
+local hudStyleState = {}
+local function ApplyHUDStyle(mode)
+    local state = hudStyleState
     if not hudArrowFrame or not db then return end
     local arrowScale = tonumber(db.hudSize) or 1.0
     arrowScale = math.max(0.55, math.min(2.0, arrowScale))
     local textScale = tonumber(db.hudTextSize) or 1.0
     textScale = math.max(0.70, math.min(1.60, textScale))
-    hudArrowFrame:SetScale(Navigator.LayoutEditor and Navigator.LayoutEditor:GetScale('HUD') or 1)
-
+    local layoutScale = Navigator.LayoutEditor and Navigator.LayoutEditor:GetScale('HUD') or 1
     local style = GetHUDArrowStyle()
-    local texture = GetHUDArrowTexturePath()
     local corpseMode = IsCorpseRunMode()
+    if state.frame == hudArrowFrame and state.mode == mode and state.arrow == arrowScale
+        and state.text == textScale and state.layout == layoutScale and state.style == style
+        and state.corpse == corpseMode and state.locked == db.hudLocked and state.r == db.hudColorR
+        and state.g == db.hudColorG and state.b == db.hudColorB
+        and state.skullSize == db.corpseHudSkullSize and state.skullAlpha == db.corpseSkullAlpha then
+        return false
+    end
+    state.frame, state.mode, state.arrow, state.text, state.layout = hudArrowFrame, mode, arrowScale, textScale, layoutScale
+    state.style, state.corpse, state.locked = style, corpseMode, db.hudLocked
+    state.r, state.g, state.b = db.hudColorR, db.hudColorG, db.hudColorB
+    state.skullSize, state.skullAlpha = db.corpseHudSkullSize, db.corpseSkullAlpha
+    hudArrowFrame:SetScale(layoutScale)
+
+    local texture = GetHUDArrowTexturePath()
     if hudArrowTexture then
         hudArrowTexture:SetTexture(texture)
         hudArrowTexture:SetDesaturated(true)
@@ -3192,7 +3220,7 @@ local function ApplyHUDStyle()
         if corpseMode then
             hudArrowTexture:SetVertexColor(CORPSE_LINE_BRIGHT[1], CORPSE_LINE_BRIGHT[2], CORPSE_LINE_BRIGHT[3], 1)
         elseif StyleUsesHudColor(style) then
-            local r, g, b = db.hudColorR, db.hudColorG, db.hudColorB
+            local r, g, b = tonumber(db.hudColorR), tonumber(db.hudColorG), tonumber(db.hudColorB)
             if r == 0.08 and g == 0.74 and b == 1.0 then r, g, b = 1, .86, .57 end
             hudArrowTexture:SetVertexColor(r or 1, g or .86, b or .57, 1)
         else
@@ -3228,16 +3256,24 @@ local function ApplyHUDStyle()
         hudDistanceText:ClearAllPoints()
         hudDistanceText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -(44 + 20 * arrowScale))
         hudDistanceText:SetTextColor(1, .91, .73, 1)
+        hudDistanceText:SetShadowOffset(1, -1)
     end
     if hudEtaText then
         hudEtaText:ClearAllPoints()
         hudEtaText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -(69 + 20 * arrowScale))
         hudEtaText:SetTextColor(0.82, 0.88, 0.94, 1)
+        hudEtaText:SetShadowOffset(1, -1)
+    end
+    if hudContextText then
+        hudContextText:SetWidth(256)
+        hudContextText:SetTextColor(0.95, 0.78, 0.30, 1)
+        hudContextText:SetShadowOffset(1, -1)
     end
 
     local locked = db.hudLocked and true or false
     hudArrowFrame:EnableMouse(not locked)
     if hudDragHint then hudDragHint:Hide() end
+    return true
 end
 
 local function HideGrindHUD()
@@ -3470,10 +3506,7 @@ local function UpdateHUDArrow(dt)
     if Navigator.LayoutEditor and Navigator.LayoutEditor:IsEditing() then HideHUDArrow();return end
     if not db or not db.enabled or not db.showHUDArrow then HideHUDArrow() return end
     if not hudArrowFrame then BuildHUDArrow() end
-    ApplyHUDStyle()
-    -- Keep the HUD arrow scale local to this update as well. ApplyHUDStyle()
-    -- uses its own local value, so relying on that variable here would result
-    -- in a nil global after the arrow/text size split introduced in beta2.
+
     local arrowScale = tonumber(db.hudSize) or 1.0
     arrowScale = math.max(0.55, math.min(2.0, arrowScale))
 
@@ -3483,6 +3516,7 @@ local function UpdateHUDArrow(dt)
     -- directional navigation. A Travel action is an instruction, not a path.
     local travelAnnouncement = Navigator.TravelHUD and Navigator.TravelHUD:GetAnnouncement(currentElement)
     if travelAnnouncement then
+        local styleChanged = ApplyHUDStyle("announcement")
         HideGrindHUD()
         if hudCorpseSkull then hudCorpseSkull:Hide() end
         if hudArrowTexture then hudArrowTexture:Hide() end
@@ -3494,19 +3528,24 @@ local function UpdateHUDArrow(dt)
             hudArrowFrame.rxpTravelIcon:SetPoint("TOP", hudArrowFrame, "TOP", 0, -2)
         end
         if hudArrowFrame and hudArrowFrame.rxpTravelIcon then
-            hudArrowFrame.rxpTravelIcon:SetTexture(travelAnnouncement.icon or "Interface\\Icons\\INV_Misc_Rune_01")
-            hudArrowFrame.rxpTravelIcon:SetTexCoord(0, 1, 0, 1)
+            local icon = travelAnnouncement.icon or "Interface\\Icons\\INV_Misc_Rune_01"
+            if hudStyleState.announcementIcon ~= icon then
+                hudStyleState.announcementIcon = icon
+                hudArrowFrame.rxpTravelIcon:SetTexture(icon)
+            end
             hudArrowFrame.rxpTravelIcon:Show()
         end
 
         if hudDistanceText then
-            hudDistanceText:ClearAllPoints()
-            hudDistanceText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -(54 + 18 * arrowScale))
-            hudDistanceText:SetWidth(260)
-            hudDistanceText:SetJustifyH("CENTER")
-            if GameFontNormalLarge and GameFontNormalLarge.GetFont then
-                local path, size, flags = GameFontNormalLarge:GetFont()
-                if path and size then hudDistanceText:SetFont(path, math.max(12, size * (tonumber(db.hudTextSize) or 1.0) * 0.92), flags) end
+            if styleChanged then
+                hudDistanceText:ClearAllPoints()
+                hudDistanceText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -(54 + 18 * arrowScale))
+                hudDistanceText:SetWidth(260)
+                hudDistanceText:SetJustifyH("CENTER")
+                if GameFontNormalLarge and GameFontNormalLarge.GetFont then
+                    local path, size, flags = GameFontNormalLarge:GetFont()
+                    if path and size then hudDistanceText:SetFont(path, math.max(12, size * hudStyleState.text * 0.92), flags) end
+                end
             end
             hudDistanceText:SetText("|cffffd24a" .. (travelAnnouncement.title or "TRAVEL") .. "|r")
             hudDistanceText:Show()
@@ -3536,7 +3575,9 @@ local function UpdateHUDArrow(dt)
         local travelRoute = smartTravelPlan and smartTravelPlan.routeRaw or Navigator.TravelMode:GetBestRoute(currentElement, travelInfo)
         if hudCorpseSkull then hudCorpseSkull:Hide() end
 
+        local styleChanged = ApplyHUDStyle(travelRoute and "transport" or "travelFallback")
         if travelRoute then
+            local planForDisplay = smartTravelPlan
             local departureElement = smartTravelPlan and smartTravelPlan.approachElement or { zone=travelRoute.fromMap, x=travelRoute.fromX, y=travelRoute.fromY, arrow=true, textOnly=true, travelPoint=true }
             local rotation, distance = GetHUDNavigationMetrics(departureElement)
             if rotation then
@@ -3548,7 +3589,6 @@ local function UpdateHUDArrow(dt)
             end
 
             if hudDistanceText then
-                local planForDisplay = smartTravelPlan
                 local routeKind = planForDisplay and planForDisplay.route and planForDisplay.route.kind or nil
                 local iconTexture = Navigator.Presentation and Navigator.Presentation:GetTransportIcon(routeKind) or "Interface\\MINIMAP\\TRACKING\\FlightMaster"
                 local icon = "|T" .. iconTexture .. ":20:20:0:0|t"
@@ -3557,28 +3597,32 @@ local function UpdateHUDArrow(dt)
                     local kind = travelRoute.kind == "Ship" and (L("travelShip") or "Ship") or (L("travelZeppelin") or "Zeppelin")
                     title = kind .. " -> " .. travelRoute.toName
                 end
-                if GameFontNormalLarge and GameFontNormalLarge.GetFont then
-                    local path, size = GameFontNormalLarge:GetFont()
-                    if path and size then
-                        hudDistanceText:SetFont(path, math.max(13, size * (tonumber(db.hudTextSize) or 1.0)), "OUTLINE")
+                if styleChanged then
+                    if GameFontNormalLarge and GameFontNormalLarge.GetFont then
+                        local path, size = GameFontNormalLarge:GetFont()
+                        if path and size then
+                            hudDistanceText:SetFont(path, math.max(13, size * hudStyleState.text), "OUTLINE")
+                        end
                     end
+                    hudDistanceText:SetShadowColor(0, 0, 0, 1)
+                    hudDistanceText:SetShadowOffset(2, -2)
                 end
-                hudDistanceText:SetShadowColor(0, 0, 0, 1)
-                hudDistanceText:SetShadowOffset(2, -2)
                 hudDistanceText:SetText(icon .. "  |cffffd24a" .. title .. "|r")
                 hudDistanceText:Show()
             end
             if hudEtaText then
-                if distance then
+                if styleChanged then
                     if GameFontNormalLarge and GameFontNormalLarge.GetFont then
                         local path, size = GameFontNormalLarge:GetFont()
                         if path and size then
-                            hudEtaText:SetFont(path, math.max(14, size * (tonumber(db.hudTextSize) or 1.0) * 0.95), "OUTLINE")
+                            hudEtaText:SetFont(path, math.max(14, size * hudStyleState.text * 0.95), "OUTLINE")
                         end
                     end
                     hudEtaText:SetTextColor(1, 1, 1, 1)
                     hudEtaText:SetShadowColor(0, 0, 0, 1)
                     hudEtaText:SetShadowOffset(2, -2)
+                end
+                if distance then
                     hudEtaText:SetText(FormatHUDDistance(distance))
                     hudEtaText:Show()
                 else
@@ -3587,7 +3631,7 @@ local function UpdateHUDArrow(dt)
             end
             if hudContextText then
                 local context = Navigator.Presentation and Navigator.Presentation:FormatTravelContext(planForDisplay) or nil
-                if context and context ~= "" then
+                if styleChanged then
                     hudContextText:ClearAllPoints()
                     hudContextText:SetPoint("TOP", hudArrowFrame, "TOP", 0, -126)
                     hudContextText:SetWidth(320)
@@ -3595,12 +3639,14 @@ local function UpdateHUDArrow(dt)
                     if GameFontHighlightSmall and GameFontHighlightSmall.GetFont then
                         local path, size = GameFontHighlightSmall:GetFont()
                         if path and size then
-                            hudContextText:SetFont(path, math.max(11, size * (tonumber(db.hudTextSize) or 1.0)), "OUTLINE")
+                            hudContextText:SetFont(path, math.max(11, size * hudStyleState.text), "OUTLINE")
                         end
                     end
                     hudContextText:SetTextColor(1.00, 0.86, 0.48, 1)
                     hudContextText:SetShadowColor(0, 0, 0, 1)
                     hudContextText:SetShadowOffset(2, -2)
+                end
+                if context and context ~= "" then
                     hudContextText:SetText(context)
                     hudContextText:Show()
                 else
@@ -3630,16 +3676,13 @@ local function UpdateHUDArrow(dt)
         return
     end
 
-    -- Restore normal arrow visuals automatically after arriving on the target continent.
+    ApplyHUDStyle("normal")
     if hudArrowTexture then hudArrowTexture:Show() end
     if hudArrowShadow then hudArrowShadow:Show() end
 
     local rotation, distance, relativeBearing = GetHUDNavigationMetrics()
     if not rotation or not distance then HideHUDArrow() return end
 
-    -- WoW Forever may return a protected/secret number from GetUnitSpeed().
-    -- Secret values cannot legally be compared or used in arithmetic by addons,
-    -- so ETA deliberately uses a safe estimated travel speed instead.
     hudArrowTexture:SetRotation(rotation)
     if hudArrowShadow then hudArrowShadow:SetRotation(rotation) end
 
@@ -3697,6 +3740,8 @@ local function UpdateHUDArrow(dt)
 end
 
 local MINIMAP_PROFILE_PHASES = {"Minimap route", "Minimap projection", "Minimap drawing"}
+local PERFORMANCE_ROOTS = {"HUD", "World marker", "World marker tracking", "Minimap", "World map", "Full refresh", "SPF bridge", "Quest messages", "RXP maintenance", "Map tooltip", "Route tooltip"}
+local PERFORMANCE_DETAILS = {"Player map lookup", "Quest objectives", "Target resolution", "Current route plan", "Future route plans", "Grind state", "Minimap overlays", "Minimap future", "World overlays"}
 
 function Navigator:RecordNavigationTiming(label, milliseconds)
     local bucket = profileSample and profileSample[label]
@@ -3711,10 +3756,21 @@ local function FinishNavigationProfile()
     profileSample = nil
     Navigator.navigationProfileActive = false
     if not sample or sample.frames == 0 then return end
+    Navigator.Debug:BeginCapture("Performance")
+    Print(("Version %s | SPF bridge %s | SPF %s | locale %s | map %s | future steps %s"):format(
+        ADDON_VERSION,
+        tostring((C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata("RXP_Navigator_SPF", "Version")) or "?"),
+        tostring((C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata("ShortestPathForever", "Version")) or "?"),
+        tostring(GetLocale()), tostring(GetDisplayedMapID()), tostring(db and db.futureGoals)))
+    Print(("Settings | HUD=%s marker=%s header=%s minimap=%s worldmap=%s animation=%s bridge=%s"):format(
+        tostring(db and db.showHUDArrow), tostring(db and db.showWorldMarkerNative),
+        tostring(db and db.showWorldMarkerHeader), tostring(db and db.showMinimap),
+        tostring(db and db.showWorldMap), tostring(db and db.animation),
+        tostring(RXPNavigatorSPFDB and RXPNavigatorSPFDB.enabled)))
     Print(("Performance | %.1f s | %.1f FPS | %d frames"):format(
         sample.seconds, sample.frames / sample.seconds, sample.frames))
     local total = 0
-    for _, label in ipairs({"HUD", "World marker", "Minimap", "World map"}) do
+    for _, label in ipairs(PERFORMANCE_ROOTS) do
         local bucket = sample[label]
         if bucket.calls > 0 then
             total = total + bucket.total
@@ -3722,7 +3778,17 @@ local function FinishNavigationProfile()
                 label, bucket.total / sample.frames, bucket.total / bucket.calls, bucket.peak, bucket.calls))
         end
     end
-    Print(("Measured subtotal: %.3f ms/frame"):format(total / sample.frames))
+    Print(("Measured subtotal: %.3f ms/frame (instrumented sections only)"):format(total / sample.frames))
+    Print(("World map visible: %.1f%% | combat: %.1f%% | RXP messages: %d"):format(
+        100 * sample.mapSeconds / sample.seconds, 100 * sample.combatSeconds / sample.seconds, sample.rxpMessages))
+    Print("Nested measurements below overlap parent sections.")
+    for _, label in ipairs(PERFORMANCE_DETAILS) do
+        local bucket = sample[label]
+        if bucket.calls > 0 then
+            Print(("%s: %.3f ms/frame | %.3f ms/update avg | %.3f ms peak | %d calls"):format(
+                label, bucket.total / sample.frames, bucket.total / bucket.calls, bucket.peak, bucket.calls))
+        end
+    end
     for _, label in ipairs(MINIMAP_PROFILE_PHASES) do
         local bucket = sample[label]
         if bucket.calls > 0 then
@@ -3730,6 +3796,8 @@ local function FinishNavigationProfile()
                 label, bucket.total / sample.frames, bucket.total / bucket.calls, bucket.calls))
         end
     end
+    Navigator.Debug:EndCapture()
+    Navigator.Debug:ShowExport()
 end
 
 local function StartNavigationProfile()
@@ -3737,11 +3805,14 @@ local function StartNavigationProfile()
         Print("Performance timer is unavailable on this client.")
         return
     end
-    profileSample = {seconds = 0, frames = 0}
-    for _, label in ipairs({"HUD", "World marker", "Minimap", "World map"}) do
+    profileSample = {seconds = 0, frames = 0, mapSeconds = 0, combatSeconds = 0, rxpMessages = 0}
+    for _, label in ipairs(PERFORMANCE_ROOTS) do
         profileSample[label] = {total = 0, calls = 0, peak = 0}
     end
     for _, label in ipairs(MINIMAP_PROFILE_PHASES) do
+        profileSample[label] = {total = 0, calls = 0, peak = 0}
+    end
+    for _, label in ipairs(PERFORMANCE_DETAILS) do
         profileSample[label] = {total = 0, calls = 0, peak = 0}
     end
     Navigator.navigationProfileActive = true
@@ -3760,6 +3831,7 @@ local function RunNavigationUpdate(label, update, ...)
 end
 
 local function RefreshAll()
+    local started = Navigator.navigationProfileActive and debugprofilestop()
     ApplyTheme()
     ResizeTargetMarker(targetDot, 0.82, db and db.minimapTargetSize)
     ResizeTargetMarker(worldTargetPin, 1.0, db and db.worldTargetSize)
@@ -3770,6 +3842,7 @@ local function RefreshAll()
     if Navigator.LayoutEditor then Navigator.LayoutEditor:ApplyAll() end
     if Navigator.MinimapButton and Navigator.MinimapButton.Update then Navigator.MinimapButton:Update() end
     if Navigator.Options and Navigator.Options.Refresh then Navigator.Options:Refresh() end
+    if started then Navigator:RecordNavigationTiming("Full refresh", debugprofilestop() - started) end
 end
 
 -- Optional RestedXP V2 message bridge. RestedXP 4.11.15 broadcasts these
@@ -3989,6 +4062,18 @@ function Navigator.API:GetConversationHeader(element, action, instruction)
     local step = element.step
     if not step then return end
     local npc, note, ambiguous
+    local function matchTemplate(line, template)
+        local prefix, suffix = template:match("^(.-)%%s(.*)$")
+        if not prefix or line:sub(1, #prefix) ~= prefix then return end
+        if suffix ~= "" and line:sub(-#suffix) ~= suffix then return end
+        return line:sub(#prefix + 1, #line - #suffix)
+    end
+    local talkTemplate = L("Talk to %s")
+    local function scanNPC(candidate)
+        if not candidate or candidate == "" then return end
+        if npc and npc ~= candidate then ambiguous = true end
+        npc = candidate
+    end
     local function scan(value)
         local text = CleanRXPText(value)
         if not text then return end
@@ -3996,19 +4081,23 @@ function Navigator.API:GetConversationHeader(element, action, instruction)
             local lower = line:lower()
             local name = line:match("^[Ss]prich mit (.+)") or line:match("^[Ss]precht mit (.+)")
                 or line:match("^[Rr]ede mit (.+)") or line:match("^[Tt]alk to (.+)")
+                or matchTemplate(line:gsub("[%.!]$", ""), talkTemplate)
             if name then
                 name = name:gsub("[%.!]$", "")
-                if npc and npc ~= name then ambiguous = true end
-                npc = name
+                scanNPC(name)
             elseif not note and (lower:find("patrouill",1,true) or lower:find("patrol",1,true)) then
                 note = line
             end
         end
     end
+    local structuredNPC = CleanRXPText(element.npcName)
     scan(step.text)
     scan(step.hiddentext)
     for _, sibling in ipairs(step.elements or {}) do
         if type(sibling) == "table" and not sibling.skip then
+            if not structuredNPC and sibling.npcName and self:DetectStepType(sibling) == action then
+                structuredNPC = CleanRXPText(sibling.npcName)
+            end
             local rendered = sibling.frame and sibling.frame.text
             if rendered and rendered.GetText then scan(rendered:GetText()) end
             scan(sibling.text)
@@ -4017,7 +4106,7 @@ function Navigator.API:GetConversationHeader(element, action, instruction)
             scan(sibling.tooltipText)
         end
     end
-    if ambiguous then return nil, note end
+    if structuredNPC then npc = structuredNPC elseif ambiguous then return nil, note end
     if not npc and note then
         npc = note:match("^(.+) patrouilliert%s") or note:match("^(.+) patrols%s")
     end
@@ -4030,11 +4119,13 @@ function Navigator.API:GetConversationHeader(element, action, instruction)
     local quest = questID and C_QuestLog and C_QuestLog.GetTitleForQuest and C_QuestLog.GetTitleForQuest(questID)
     if not quest or quest == "" then
         local text = instruction or ""
-        if action == "turnin" then
+        quest = text:match("%[([^%[%]]+)%]$")
+            or matchTemplate(text, L(action == "turnin" and "Turn in quest" or "Accept quest") .. " %s")
+        if not quest and action == "turnin" then
             quest = text:match("^[Gg]ebt die Quest (.+) ab[%.!]?$")
                 or text:match("^[Gg]ib die Quest (.+) ab[%.!]?$")
                 or text:match("^[Tt]urn in (.+)") or text:match("^[Aa]bgeben %[(.+)%]")
-        else
+        elseif not quest then
             quest = text:match("^[Nn]ehmt die Quest (.+) an[%.!]?$")
                 or text:match("^[Nn]imm die Quest (.+) an[%.!]?$")
                 or text:match("^[Aa]ccept (.+)") or text:match("^[Aa]nnehmen %[(.+)%]")
@@ -4042,14 +4133,9 @@ function Navigator.API:GetConversationHeader(element, action, instruction)
     end
     if not quest or quest == "" then return nil, note end
     quest = quest:gsub("^%[(.+)%]$", "%1")
-    if german then
-        local pattern = action == "turnin" and "Sprich mit %s und gib die Quest „%s“ ab"
-            or "Sprich mit %s und nimm die Quest „%s“ an"
-        return pattern:format(npc,quest), note
-    end
     local pattern = action == "turnin" and "Talk to %s and turn in “%s”"
         or "Talk to %s and accept “%s”"
-    return pattern:format(npc,quest), note
+    return L(pattern):format(npc, quest), note
 end
 
 function Navigator.API:IsItemUseInstruction(text)
@@ -4337,12 +4423,17 @@ Navigator:SetScript("OnUpdate", function(self, dt)
     self._rxpEnsure = (self._rxpEnsure or 0) + dt
     if self._rxpEnsure >= 0.5 then
         self._rxpEnsure = 0
+        local started = self.navigationProfileActive and debugprofilestop()
         Navigator.RXPBridge:EnsureWaypointEngine()
         if not Navigator.rxpEventBridgeReady then Navigator.RXPBridge:SetupEventBridge() end
+        if started then self:RecordNavigationTiming("RXP maintenance", debugprofilestop() - started) end
     end
     if self._rxpEventRefreshPending then
         self._rxpEventRefreshPending = nil
-        RefreshAll()
+        if profileSample then profileSample.rxpMessages = profileSample.rxpMessages + (self._rxpPerfMessages or 0) end
+        self._rxpPerfMessages = nil
+        Navigator.RXPData:Invalidate()
+        elapsed, mapElapsed, hudElapsed = UPDATE_INTERVAL, MAP_UPDATE_INTERVAL, 0.05
     end
     elapsed = elapsed + dt
     if elapsed >= UPDATE_INTERVAL then elapsed = 0; RunNavigationUpdate("Minimap", UpdateMinimapRoute) end
@@ -4353,6 +4444,8 @@ Navigator:SetScript("OnUpdate", function(self, dt)
     if profileSample then
         profileSample.seconds = profileSample.seconds + dt
         profileSample.frames = profileSample.frames + 1
+        if WorldMapFrame and WorldMapFrame:IsShown() then profileSample.mapSeconds = profileSample.mapSeconds + dt end
+        if InCombatLockdown() then profileSample.combatSeconds = profileSample.combatSeconds + dt end
         if profileSample.seconds >= 30 then FinishNavigationProfile() end
     end
 end)

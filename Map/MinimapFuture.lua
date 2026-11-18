@@ -71,10 +71,9 @@ local function SetLine(line, parent, x1, y1, x2, y2, thickness)
 end
 
 function Navigator.MinimapFuture:Update(ctx)
-    self:HideAll()
-    if not ctx or not ctx.enabled or ctx.corpseMode then return end
+    if not ctx or not ctx.enabled or ctx.corpseMode then self:HideAll(); return end
     local futureCount = math.max(0, math.min(6, tonumber(ctx.futureGoals) or 0))
-    if futureCount <= 0 then return end
+    if futureCount <= 0 then self:HideAll(); return end
 
     -- Future minimap markers must represent the next RestedXP guide steps,
     -- not the route-resolver path. The route resolver intentionally skips
@@ -82,7 +81,7 @@ function Navigator.MinimapFuture:Update(ctx)
     -- filtering is correct for navigation geometry but must not hide +1/+2/+3
     -- guide targets from the minimap.
     local targets = API:GetSelectedFutureTargets(futureCount)
-    if type(targets) ~= "table" or #targets == 0 then return end
+    if type(targets) ~= "table" or #targets == 0 then self:HideAll(); return end
 
     local shown = 0
     local lineCount = 0

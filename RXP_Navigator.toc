@@ -12,7 +12,7 @@
 ## Notes-zhCN: WoW Forever的RestedXP Guides导航助手。
 ## Notes-zhTW: WoW Forever的RestedXP Guides導航助手。
 ## Author: Fabian
-## Version: 1.7.10
+## Version: 1.7.18
 ## IconTexture: Interface\AddOns\RXP_Navigator\Media\RXPNav_IconRound.tga
 ## Category: Quests
 ## Category-deDE: Quests
@@ -44,6 +44,7 @@ Core\TravelHUD.lua
 Core\RouteSmoother.lua
 UI\Presentation.lua
 Debug\Inspector.lua
+Debug\Performance.lua
 Debug\Diagnostics.lua
 UI\Theme.lua
 UI\Options.lua

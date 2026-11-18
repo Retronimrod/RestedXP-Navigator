@@ -74,6 +74,8 @@ local function ParseTargetXP(text)
     return goal, total
 end
 
+local parseCache = {}
+
 function GrindHUD:GetState()
     if not API.ResolveActiveGuideAndStep then return nil end
 
@@ -84,12 +86,20 @@ function GrindHUD:GetState()
     local step = rawget(steps, tonumber(stepIndex))
     if type(step) ~= "table" or step.skip or step.completed then return nil end
 
-    local text = StepText(step)
-    local goalXP, parsedMax = ParseTargetXP(text)
+    local now = GetTime()
+    local revision = Navigator.RXPData and Navigator.RXPData.revision
+    local questRevision = Navigator.Performance and Navigator.Performance.questRevision
+    if parseCache.step ~= step or parseCache.revision ~= revision or parseCache.questRevision ~= questRevision
+        or not parseCache.time or now < parseCache.time or now - parseCache.time >= .25 then
+        parseCache.goal, parseCache.maximum = ParseTargetXP(StepText(step))
+        parseCache.step, parseCache.revision, parseCache.questRevision, parseCache.time = step, revision, questRevision, now
+    end
+    local goalXP, parsedMax = parseCache.goal, parseCache.maximum
     if not goalXP then return nil end
 
     local currentXP = UnitXP and UnitXP("player") or nil
     local levelMax = UnitXPMax and UnitXPMax("player") or nil
+    if issecretvalue and (issecretvalue(currentXP) or issecretvalue(levelMax)) then return nil end
     if type(currentXP) ~= "number" then return nil end
     if type(levelMax) ~= "number" or levelMax <= 0 then levelMax = parsedMax end
     if type(parsedMax) == "number" and parsedMax > 0 then levelMax = parsedMax end

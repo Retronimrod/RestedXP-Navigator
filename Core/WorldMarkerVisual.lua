@@ -107,6 +107,7 @@ local BEACON_ACTIONS = {
     kill     = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_kill',
     loot     = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_loot',
     vendor   = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_vendor',
+    bind     = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Hearthstone.tga',
     hearth   = 'Interface\\Icons\\INV_Misc_Rune_01',
     travel   = 'Interface\\AddOns\\RXP_Navigator\\Media\\RXPNav_Action_travel',
     book     = 'Interface\\Icons\\INV_Misc_Note_06',
@@ -153,6 +154,7 @@ local function GetBeaconAction(status)
         if transport == 'flight' or transport == 'flight path' then return 'flight' end
     end
     local action = status.activeIconKey
+    if action == 'bind' then return 'bind' end
     if action ~= 'accept' and action ~= 'turnin' then
         local guideAction = status.activeGuideAction or status.activeInstruction
         if API:IsItemUseInstruction(guideAction) then return 'useitem' end

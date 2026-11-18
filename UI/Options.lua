@@ -9,7 +9,7 @@ Navigator.Options = Navigator.Options or {}
 
 local db
 local optionsPanel
-local optionsCategory
+local launcher
 local defaults = API:GetDefaults()
 
 local function SyncDB()
@@ -19,6 +19,16 @@ end
 
 local function L(key) return API:Translate(key) end
 local function RefreshAll() return API:RefreshAll() end
+local pendingSliderRefresh
+function Navigator.Options:RefreshAfterSlider()
+    if pendingSliderRefresh then pendingSliderRefresh:Cancel() end
+    pendingSliderRefresh = C_Timer.NewTimer(0.15, function()
+        pendingSliderRefresh = nil
+        API:SaveActiveProfile()
+        RefreshAll()
+    end)
+end
+
 local function ApplyHUDPosition() return API:ApplyHUDPosition() end
 local function PrintMapDiagnostics(captureOnly) return API:PrintMapDiagnostics(captureOnly) end
 local function GenerateBugReport() return API:GenerateBugReport() end
@@ -92,15 +102,19 @@ local function MakeSlider(panel, parent, label, x, y, width, minVal, maxVal, ste
     value:SetPoint("LEFT", slider, "RIGHT", 12, 0)
     slider.valueText = value
 
+    local refreshing
     slider:SetScript("OnValueChanged", function(self, v)
+        if refreshing then return end
         v = math.floor(v / step + 0.5) * step
         setter(v)
         value:SetText(formatter and formatter(v) or tostring(v))
-        RefreshAll()
+        Navigator.Options:RefreshAfterSlider()
     end)
     slider.Refresh = function(self)
-        local v = getter()
+        local v = math.max(minVal, math.min(maxVal, getter()))
+        refreshing = true
         self:SetValue(v)
+        refreshing = false
         value:SetText(formatter and formatter(v) or tostring(v))
     end
     return Register(panel, slider)
@@ -235,8 +249,12 @@ local function MakeHUDColorButton(panel, parent, x, y)
         swatch:SetColorTexture(r or db.hudColorR or 0.08, g or db.hudColorG or 0.74, bl or db.hudColorB or 1.0, 1)
     end
     b:SetScript("OnClick", function() OpenHUDColorPicker(UpdateSwatch) end)
-    b.Refresh = function() UpdateSwatch() end
-    UpdateSwatch()
+    b.Refresh = function(self)
+        UpdateSwatch()
+        local style = db.hudArrowStyle
+        self:SetEnabled(style ~= "compass" and style ~= "crystal")
+    end
+    b:Refresh()
     return Register(panel, b)
 end
 
@@ -332,7 +350,7 @@ local function BuildMinimapPage(panel)
     MakeCheckbox(panel, page, L("minimap"), 18, -48, function() return db.showMinimap end, function(v) db.showMinimap=v end)
     MakeCheckbox(panel, page, L("distance"), 340, -48, function() return db.showDistance end, function(v) db.showDistance=v end)
     MakeCheckbox(panel, page, L("animation"), 18, -82, function() return db.animation end, function(v) db.animation=v end)
-    MakeCheckbox(panel, page, "Next Steps on Minimap", 340, -82,
+    MakeCheckbox(panel, page, API:Localize("Next Steps on Minimap"), 340, -82,
         function() return db.showMinimapFutureGoals ~= false end,
         function(v)
             db.showMinimapFutureGoals = v
@@ -587,11 +605,12 @@ local function BuildTabs(panel)
     end
 end
 
-local function BuildOptionsPanel()
+local function BuildOptionsPanel(parent)
     SyncDB()
     if optionsPanel then return optionsPanel end
 
-    local p = CreateFrame("Frame", "RXPNavigatorOptionsPanel")
+    local p = CreateFrame("Frame", "RXPNavigatorOptionsPanel", parent)
+    p:SetAllPoints(parent)
     p.name = "RestedXP-Navigator"
     p.pages = {}
     p.tabButtons = {}
@@ -645,37 +664,40 @@ local function BuildOptionsPanel()
 
     SelectTab(p, "general")
 
-    if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
-        local category = Settings.RegisterCanvasLayoutCategory(p, "RestedXP-Navigator")
-        Settings.RegisterAddOnCategory(category)
-        optionsCategory = category
-    elseif InterfaceOptions_AddCategory then
-        InterfaceOptions_AddCategory(p)
-        optionsCategory = p
-    end
-
     optionsPanel = p
     return p
 end
 
-local function OpenOptions()
-    SyncDB()
-    local p = BuildOptionsPanel()
-    p:Refresh()
-    if Settings and Settings.OpenToCategory and optionsCategory then
-        local id = optionsCategory.ID or optionsCategory
-        Settings.OpenToCategory(id)
-    elseif InterfaceOptionsFrame_OpenToCategory then
-        InterfaceOptionsFrame_OpenToCategory(p)
-        InterfaceOptionsFrame_OpenToCategory(p)
-    else
-        Print(API:Localize("Open Blizzard settings > AddOns > RestedXP-Navigator"))
+function Navigator.Options:Build()
+    if launcher then return launcher end
+    launcher = CreateFrame("Frame", "RXPNavigatorSettingsLauncher")
+    launcher.name = "RestedXP-Navigator"
+    local open = MakeButton(launcher)
+    open:SetSize(250, 28)
+    open:SetPoint("TOPLEFT", 18, -24)
+    open:SetText(API:Localize("Open Navigator settings"))
+    open:SetScript("OnClick", function()
+        if SettingsPanel and SettingsPanel:IsShown() then SettingsPanel:Hide() end
+        if InterfaceOptionsFrame and InterfaceOptionsFrame:IsShown() then InterfaceOptionsFrame:Hide() end
+        self:Open()
+    end)
+    if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
+        Settings.RegisterAddOnCategory(Settings.RegisterCanvasLayoutCategory(launcher, launcher.name))
+    elseif InterfaceOptions_AddCategory then
+        InterfaceOptions_AddCategory(launcher)
     end
+    return launcher
 end
 
-function Navigator.Options:Build() return BuildOptionsPanel() end
-function Navigator.Options:Open() return OpenOptions() end
+function Navigator.Options:BuildDetails(parent)
+    return BuildOptionsPanel(parent)
+end
+
+function Navigator.Options:Open()
+    if Navigator.ControlCenter then Navigator.ControlCenter:Open() end
+end
+
 function Navigator.Options:Refresh()
     SyncDB()
-    if optionsPanel and optionsPanel.Refresh then optionsPanel:Refresh() end
+    if optionsPanel and optionsPanel:IsVisible() and optionsPanel.Refresh then optionsPanel:Refresh() end
 end
