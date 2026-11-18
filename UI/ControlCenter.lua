@@ -229,6 +229,8 @@ end
 local newsWindow
 local restoreSettingsAfterNews
 local releases = {
+    {"1.7.26", "Performance", "The minimap shares cached travel planning with the HUD. Position, zoom and direction remain live."},
+    {"1.7.19", "Performance", "Minimap and HUD share position data within each frame. Upcoming markers update their styling only when it changes."},
     {"1.7.18", "Performance", "Faster map lookup and cached quest data. Record a 30-second performance report under Advanced."},
     {"1.7.17", "Target box", "The target box can be enabled or disabled under Navigation."},
     {"1.7.16", "Navigation and settings fixes", "Localized quest headings, clearer settings and fewer HUD style updates."},
@@ -314,9 +316,11 @@ function CC:OpenNews()
     end
     for index,release in ipairs(releases) do
         local version = release[1]
-        buttons[index] = Button(f,'v'..version,18,-101-(index-1)*26,167,function() Select(index) end)
+        buttons[index] = Button(f,'v'..version,18,-101-(index-1)*24,167,function() Select(index) end)
+        buttons[index]:SetHeight(23)
     end
-    buttons[#releases+1] = Button(f,'Contributors',18,-101-#releases*26,167,function() Select(#releases+1) end)
+    buttons[#releases+1] = Button(f,'Contributors',18,-101-#releases*24,167,function() Select(#releases+1) end)
+    buttons[#releases+1]:SetHeight(23)
     Button(f,'GitHub',205,-438,110,function()
         OpenExternalURL('https://github.com/Retronimrod/RestedXP-Navigator')
     end)
@@ -331,10 +335,12 @@ local function BuildPages()
     c=Card(p,'Navigator','Master switches for the navigation layer.',4,-70,700,145)
     Toggle(c,'Enable RestedXP-Navigator',16,-58,function() return db.enabled end,function(v) db.enabled=v end)
     Toggle(c,'Keep navigation while dead',360,-58,function() return db.keepGhostNavigation end,function(v) db.keepGhostNavigation=v end,'Keeps corpse-run guidance available as a ghost.')
-    c2=Card(p,'Upcoming goals','Choose how much upcoming RestedXP context is displayed.',4,-230,700,150)
-    Slider(c2,'Future steps',16,-58,300,0,6,1,function() return db.futureGoals or 3 end,function(v) db.futureGoals=v; db.showMinimapFutureGoals=v>0 end,function(v) return '+'..v end)
+    c2=Card(p,'Upcoming goals','Upcoming steps are shown on the world map.',4,-230,700,150)
+    Slider(c2,'Future steps',16,-58,300,0,6,1,function() return db.futureGoals or 3 end,function(v) db.futureGoals=v end,function(v) return '+'..v end)
     Toggle(c2,'Show minimap button',360,-58,function() return db.showMinimapButton ~= false end,function(v) db.showMinimapButton=v end)
-    Toggle(c2,'Animate routes',360,-98,function() return db.animation ~= false end,function(v) db.animation=v end)
+    Toggle(c2,'Animate routes',360,-98,function() return db.animation ~= false end,function(v) db.animation=v end) 
+    Text(c2,'GameFontDisableSmall','Route animation is paused while the SPF bridge is enabled.',16,-120,650)
+
 
     c=Card(p,'Group quest messages','Only sent to your group. Solo play stays silent.',4,-400,700,190)
     Toggle(c,'Announce quest progress',16,-64,function() return db.questChatProgress == true end,function(v) db.questChatProgress=v end)
@@ -411,7 +417,7 @@ local function BuildPages()
 
 
     p=NewPage('maps','Maps','Minimap and world-map route presentation.')
-    c=Card(p,'Minimap','Current route and upcoming targets.',4,-70,700,205)
+    c=Card(p,'Minimap','The minimap shows only the current step.',4,-70,700,205)
     Toggle(c,'Show on minimap',16,-58,function() return db.showMinimap end,function(v) db.showMinimap=v end)
     Toggle(c,'Show distance',360,-58,function() return db.showDistance end,function(v) db.showDistance=v end)
     Slider(c,'Marker size',16,-120,300,8,32,1,function() return db.minimapTargetSize or 14 end,function(v) db.minimapTargetSize=v end,function(v) return v..' px' end)

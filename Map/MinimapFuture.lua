@@ -63,72 +63,16 @@ function Navigator.MinimapFuture:GetLine(index, parent)
 end
 
 local function SetLine(line, parent, x1, y1, x2, y2, thickness)
-    line:ClearAllPoints()
-    line:SetStartPoint("CENTER", parent, x1, y1)
-    line:SetEndPoint("CENTER", parent, x2, y2)
-    line:SetThickness(thickness)
+    if line.rxpX1 ~= x1 or line.rxpY1 ~= y1 or line.rxpX2 ~= x2 or line.rxpY2 ~= y2 then
+        line:ClearAllPoints()
+        line:SetStartPoint("CENTER", parent, x1, y1)
+        line:SetEndPoint("CENTER", parent, x2, y2)
+        line.rxpX1, line.rxpY1, line.rxpX2, line.rxpY2 = x1, y1, x2, y2
+    end
+    if line.rxpThickness ~= thickness then line:SetThickness(thickness); line.rxpThickness = thickness end
     line:Show()
 end
 
 function Navigator.MinimapFuture:Update(ctx)
-    if not ctx or not ctx.enabled or ctx.corpseMode then self:HideAll(); return end
-    local futureCount = math.max(0, math.min(6, tonumber(ctx.futureGoals) or 0))
-    if futureCount <= 0 then self:HideAll(); return end
-
-    -- Future minimap markers must represent the next RestedXP guide steps,
-    -- not the route-resolver path. The route resolver intentionally skips
-    -- loop/farm/overlay steps because they are not linear travel nodes; that
-    -- filtering is correct for navigation geometry but must not hide +1/+2/+3
-    -- guide targets from the minimap.
-    local targets = API:GetSelectedFutureTargets(futureCount)
-    if type(targets) ~= "table" or #targets == 0 then self:HideAll(); return end
-
-    local shown = 0
-    local lineCount = 0
-    local previousX, previousY = ctx.currentX, ctx.currentY
-
-    for ordinal = 1, #targets do
-        local element = targets[ordinal]
-        local x, y, _, offscreen = API:GetMinimapFuturePoint(
-            element,
-            ctx.playerMapID, ctx.playerX, ctx.playerY,
-            ctx.halfW, ctx.halfH, ctx.viewRadius,
-            ctx.markerSize, ctx.rotating, true
-        )
-        if x and y then
-            shown = shown + 1
-            local marker = self:GetMarker(shown, ctx.overlay)
-            marker.rxpElement = element
-            marker.rxpOrdinal = ordinal
-            marker.label:SetText("+" .. tostring(ordinal))
-            if offscreen then marker.label:SetTextColor(0.80, 0.94, 1.00, 1.00) else marker.label:SetTextColor(0.68, 0.92, 1.00, 0.95) end
-            local alpha = math.max(0.38, 0.78 - (ordinal - 1) * 0.10)
-            if offscreen then alpha = math.max(0.46, alpha * 0.82) end
-            marker:SetAlpha(alpha)
-            local size = math.max(9, math.min(13, (tonumber(ctx.markerSize) or 14) * 0.72))
-            marker:SetSize(size, size)
-            marker:ClearAllPoints()
-            marker:SetPoint("CENTER", ctx.overlay, "CENTER", x, y)
-            marker:Show()
-
-            -- Connect the visible current/next targets with a deliberately
-            -- subdued route, so the active player->current line remains dominant.
-            if previousX and previousY then
-                local dx, dy = x - previousX, y - previousY
-                if math.sqrt(dx * dx + dy * dy) > 2 then
-                    lineCount = lineCount + 1
-                    local line, shadow = self:GetLine(lineCount, ctx.overlay)
-                    shadow:SetColorTexture(0.02, 0.12, 0.18, 0.60)
-                    line:SetColorTexture(0.28, 0.78, 1.00, math.max(0.28, alpha * 0.62))
-                    SetLine(shadow, ctx.overlay, previousX, previousY, x, y, 3.6)
-                    SetLine(line, ctx.overlay, previousX, previousY, x, y, 1.8)
-                end
-            end
-            previousX, previousY = x, y
-        end
-    end
-
-    for i = shown + 1, #self.markers do self.markers[i]:Hide() end
-    for i = lineCount + 1, #self.lines do self.lines[i]:Hide() end
-    for i = lineCount + 1, #self.shadows do self.shadows[i]:Hide() end
+    self:HideAll()
 end

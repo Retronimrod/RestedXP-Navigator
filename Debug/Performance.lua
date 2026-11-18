@@ -20,6 +20,62 @@ function Performance:GetObjective(element)
     return text, kind
 end
 
+-- GetTime is shared by callbacks in the same rendered frame. Reuse work only
+-- within that frame, with event/guide invalidation and distinct fallback maps.
+local frameTime, frameRevision, frameQuestRevision
+local positions, continents = {}, {}
+local playerWorld = {}
+local function BeginFrame()
+    local now = GetTime()
+    local revision = Navigator.RXPData.revision
+    if frameTime ~= now or frameRevision ~= revision or frameQuestRevision ~= Performance.questRevision then
+        frameTime, frameRevision, frameQuestRevision = now, revision, Performance.questRevision
+        wipe(positions)
+        wipe(continents)
+        wipe(playerWorld)
+    end
+end
+
+function Performance:GetPlayerPosition(preferredMapID)
+    BeginFrame()
+    local key = preferredMapID or 0
+    local cached = positions.primary or positions[key]
+    if cached then return cached.map, cached.x, cached.y, cached.source end
+    local map, x, y, source = Navigator:ResolvePlayerMapRaw(preferredMapID)
+    -- Failed lookups are retried, so zone/loading transitions can recover.
+    if map and x and y then
+        local result = {map=map, x=x, y=y, source=source}
+        positions[key] = result
+        if source == "C_Map.GetBestMapForUnit" or source == "MapUtil.GetDisplayableMapForPlayer" then
+            positions.primary = result
+        end
+    end
+    return map, x, y, source
+end
+
+function Performance:GetPlayerWorld(mapID, x, y)
+    BeginFrame()
+    if playerWorld.map == mapID and playerWorld.x == x and playerWorld.y == y then
+        return playerWorld.wx, playerWorld.wy, playerWorld.continent
+    end
+    local wx, wy, continent = Navigator.API:GetWorldPosForMap(mapID, x, y)
+    if wx and wy then
+        playerWorld.map, playerWorld.x, playerWorld.y = mapID, x, y
+        playerWorld.wx, playerWorld.wy, playerWorld.continent = wx, wy, continent
+    end
+    return wx, wy, continent
+end
+
+function Performance:GetContinent(mapID)
+    if not mapID then return nil end
+    BeginFrame()
+    local cached = continents[mapID]
+    if cached then return cached.map, cached.name end
+    local map, name = Navigator:ResolveContinentMapRaw(mapID)
+    if map then continents[mapID] = {map=map, name=name} end
+    return map, name
+end
+
 local function Measure(object, method, label)
     local original = object and object[method]
     if type(original) ~= "function" then return end
@@ -34,7 +90,8 @@ end
 
 local events = CreateFrame("Frame")
 for _, event in ipairs({"PLAYER_LOGIN", "QUEST_LOG_UPDATE", "QUEST_WATCH_UPDATE",
-    "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "PLAYER_ENTERING_WORLD"}) do
+    "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "PLAYER_ENTERING_WORLD",
+    "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST"}) do
     events:RegisterEvent(event)
 end
 events:SetScript("OnEvent", function(_, event)

@@ -350,24 +350,11 @@ local function BuildMinimapPage(panel)
     MakeCheckbox(panel, page, L("minimap"), 18, -48, function() return db.showMinimap end, function(v) db.showMinimap=v end)
     MakeCheckbox(panel, page, L("distance"), 340, -48, function() return db.showDistance end, function(v) db.showDistance=v end)
     MakeCheckbox(panel, page, L("animation"), 18, -82, function() return db.animation end, function(v) db.animation=v end)
-    MakeCheckbox(panel, page, API:Localize("Next Steps on Minimap"), 340, -82,
-        function() return db.showMinimapFutureGoals ~= false end,
-        function(v)
-            db.showMinimapFutureGoals = v
-            if v and (tonumber(db.futureGoals) or 0) <= 0 then db.futureGoals = 3 end
-        end)
-
-    local minimapFutureLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    minimapFutureLabel:SetPoint("TOPLEFT", 340, -116)
-    minimapFutureLabel:SetText(L("upcomingAmount"))
-    local minimapFutureChoices = {}
-    for i=0,6 do minimapFutureChoices[#minimapFutureChoices+1] = {value=i,label="future"..i} end
-    MakeChoiceDropdown(panel, page, "RXPNavigatorMinimapFutureDropdown", 340, -134, 170, minimapFutureChoices,
-        function() return db.futureGoals or 0 end,
-        function(v)
-            db.futureGoals = v
-            if v == 0 then db.showMinimapFutureGoals = false else db.showMinimapFutureGoals = true end
-        end)
+    local currentOnly = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    currentOnly:SetPoint("TOPLEFT", 340, -85)
+    currentOnly:SetWidth(280)
+    currentOnly:SetJustifyH("LEFT")
+    currentOnly:SetText(API:Localize("The minimap shows only the current step."))
 
     local styleLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     styleLabel:SetPoint("TOPLEFT", 18, -138)

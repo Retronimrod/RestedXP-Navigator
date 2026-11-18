@@ -1,13 +1,10 @@
 local _, bridge = ...
 local navigator = RXPNavigator
-local hideWorldLine, hideMinimapLine = false, false
-local minimapOverlay, activeMinimapRegions
-local media = "interface/addons/rxp_navigator/media/"
+local hideWorldLine = false
 
 function bridge.UpdateMapRoutes(world, minimap)
     local alive = not UnitIsDeadOrGhost("player")
     hideWorldLine = world and alive
-    hideMinimapLine = minimap and alive
 end
 
 local smoother = navigator.RouteSmoother
@@ -38,38 +35,4 @@ if smoother and smoother.BuildPixelPath then
         end
         return buildPath(self, points, strength)
     end
-end
-
-local function FindMinimapRegions(overlay)
-    local regions = {}
-    for _, region in ipairs({overlay:GetRegions()}) do
-        if region:IsObjectType("Texture") then
-            local texture = region:GetTexture()
-            if type(texture) == "string" or type(texture) == "number" then
-                if type(texture) == "string" then texture = texture:lower():gsub("\\", "/") end
-                local layer, sublevel = region:GetDrawLayer()
-                if layer == "OVERLAY" and (
-                    ((sublevel == 5 or sublevel == 6) and (type(texture) == "number" or texture == media .. "rxpnav_linefade.tga"))
-                    or (sublevel == 7 and region:GetWidth() == 12
-                        and (type(texture) == "number" or texture == media .. "rxpnav_arrowwhite.tga"))
-                ) then
-                    regions[#regions + 1] = region
-                end
-            end
-        end
-    end
-    return regions
-end
-
-if navigator.MinimapFuture and navigator.MinimapFuture.Update then
-    hooksecurefunc(navigator.MinimapFuture, "Update", function(_, context)
-        if not hideMinimapLine or not context or context.corpseMode then return end
-        local overlay = context.overlay
-        if not overlay or overlay ~= _G.RXPNavigatorOverlay then return end
-        if minimapOverlay ~= overlay then
-            minimapOverlay = overlay
-            activeMinimapRegions = FindMinimapRegions(overlay)
-        end
-        for _, region in ipairs(activeMinimapRegions) do region:Hide() end
-    end)
 end

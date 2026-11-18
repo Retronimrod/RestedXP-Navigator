@@ -82,6 +82,7 @@ function Navigator.MinimapOverlays:GetSteps(maxFuture)
 
     Add(steps[stepIndex])
     maxFuture = math.max(0, math.min(6, tonumber(maxFuture) or 0))
+    if maxFuture == 0 then return out end
     local added = 0
     for i = stepIndex + 1, #steps do
         local step = steps[i]
@@ -277,12 +278,6 @@ function Navigator.MinimapOverlays:Update(ctx)
         self:HideAll()
         return
     end
-
-    -- Lines are transient render primitives and may be rebuilt every update.
-    -- Keep object-pin frames alive until the end of the update so mouseover
-    -- tooltips do not flicker when the minimap refreshes.
-    HidePool(self.farmLines)
-    HidePool(self.patrolLines)
 
     local farmCount, patrolCount, objectCount = 0, 0, 0
     for _, step in ipairs(self:GetSteps(ctx.futureGoals or 0)) do

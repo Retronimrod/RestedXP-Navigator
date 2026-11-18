@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.18"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.26"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -210,7 +210,7 @@ local defaults = {
     patrolAlpha = 0.78,
     farmAlpha = 0.86,
     showMinimapButton = true,
-    showMinimapFutureGoals = true,
+    showMinimapFutureGoals = false,
     minimapButtonAngle = 220,
     keepGhostNavigation = true,
     showWorldMarkerNative = false,
@@ -306,17 +306,8 @@ local function CopyDefaults()
         end
     end
 
-    -- hotfix12: after presets were removed it was possible to have the
-    -- Minimap Next Steps toggle enabled while futureGoals remained 0.
-    -- That state is contradictory in the UI and renders no future targets.
-    -- Migrate it once to a useful default (+3). Users can still explicitly
-    -- disable Next Steps or choose 0 afterwards.
-    if RXPNavigatorDB.futureGoalsMigration12 ~= true then
-        if RXPNavigatorDB.showMinimapFutureGoals ~= false and (tonumber(RXPNavigatorDB.futureGoals) or 0) <= 0 then
-            RXPNavigatorDB.futureGoals = 3
-        end
-        RXPNavigatorDB.futureGoalsMigration12 = true
-    end
+    RXPNavigatorDB.showMinimapFutureGoals = false
+    RXPNavigatorDB.futureGoalsMigration12 = true
     if not THEMES[RXPNavigatorDB.theme] then RXPNavigatorDB.theme = "navigator" end
     RXPNavigatorDB.routingEnabled = nil
     RXPNavigatorDB.roadLearning = nil
@@ -680,12 +671,15 @@ function Navigator:ResolvePlayerMapRaw(preferredMapID)
 end
 
 local function ResolvePlayerMapAndPosition(preferredMapID)
+    if Navigator.Performance then return Navigator.Performance:GetPlayerPosition(preferredMapID) end
     return Navigator:ResolvePlayerMapRaw(preferredMapID)
 end
 
-local function GetPlayerWorld(preferredMapID)
-    local mapID, x, y = ResolvePlayerMapAndPosition(preferredMapID)
+local function GetPlayerWorld(preferredMapID, playerX, playerY)
+    local mapID, x, y = preferredMapID, playerX, playerY
+    if not x or not y then mapID, x, y = ResolvePlayerMapAndPosition(preferredMapID) end
     if not mapID then return nil end
+    if Navigator.Performance then return Navigator.Performance:GetPlayerWorld(mapID, x, y) end
     return GetWorldPosForMap(mapID, x, y)
 end
 
@@ -1010,7 +1004,7 @@ function Navigator.TravelMode:GetContinentName(mapID, continentID)
     return nil
 end
 
-local function ResolveContinentMapID(mapID)
+function Navigator:ResolveContinentMapRaw(mapID)
     local current = tonumber(mapID)
     local last
     for _ = 1, 16 do
@@ -1027,12 +1021,19 @@ local function ResolveContinentMapID(mapID)
     return nil, nil
 end
 
+local function ResolveContinentMapID(mapID)
+    if Navigator.Performance then return Navigator.Performance:GetContinent(mapID) end
+    return Navigator:ResolveContinentMapRaw(mapID)
+end
+
 function Navigator.TravelMode:GetInfo(element)
     if not element or element.corpseNav then return nil end
     local targetMapID = GetTargetMap(element)
     if not targetMapID then return nil end
     local playerMapID = ResolvePlayerMapAndPosition(targetMapID)
     if not playerMapID then return nil end
+
+    if playerMapID == targetMapID then return nil end
 
     -- First classify both maps through Blizzard's UI-map hierarchy. This is the
     -- authoritative check for normal zone transitions. Forever can expose
@@ -1275,8 +1276,8 @@ function Navigator.RouteResolver:GetStepRouteNodes(step, startElement)
     return #nodes > 0 and nodes or nil
 end
 
-function Navigator.RouteResolver:GetCurrentPlan()
-    local current = GetCurrentNavigationElement()
+function Navigator.RouteResolver:GetCurrentPlan(currentOverride)
+    local current = currentOverride or GetCurrentNavigationElement()
     if not current then return nil end
     if current.corpseNav then
         return { nextPoint = current, goal = current, nodes = { current }, resolved = false, fallback = true }
@@ -2642,11 +2643,25 @@ local function UpdateMinimapRoute()
     -- During cross-continent travel the immediate transport departure point
     -- is the real local navigation target. Keep the minimap route visible and
     -- route to that point instead of hiding all navigation while continents differ.
-    local travelInfo = Navigator.TravelMode and Navigator.TravelMode:GetInfo(rawElement)
-    local smartTravelPlan = travelInfo and Navigator.TravelPlanner and Navigator.TravelPlanner.GetPlan and Navigator.TravelPlanner:GetPlan(rawElement) or nil
+    -- Reuse the same short-lived travel result as the HUD. Projection below
+    -- still uses the player's current coordinates, minimap zoom and facing.
+    local travelInfo
+    if Navigator.TravelPlanner and Navigator.TravelPlanner.GetHUDTravelInfo then
+        travelInfo = Navigator.TravelPlanner:GetHUDTravelInfo(rawElement)
+    else
+        travelInfo = Navigator.TravelMode and Navigator.TravelMode:GetInfo(rawElement)
+    end
+    local smartTravelPlan
+    if travelInfo and Navigator.TravelPlanner then
+        if Navigator.TravelPlanner.GetHUDTravelPlan then
+            smartTravelPlan = Navigator.TravelPlanner:GetHUDTravelPlan(rawElement, travelInfo)
+        elseif Navigator.TravelPlanner.GetPlan then
+            smartTravelPlan = Navigator.TravelPlanner:GetPlan(rawElement, travelInfo)
+        end
+    end
     local travelApproach = smartTravelPlan and smartTravelPlan.approachElement or nil
 
-    local routePlan = (not travelApproach) and Navigator.RouteResolver and Navigator.RouteResolver:GetCurrentPlan() or nil
+    local routePlan = (not travelApproach) and Navigator.RouteResolver and Navigator.RouteResolver:GetCurrentPlan(rawElement) or nil
     local element = travelApproach or (routePlan and routePlan.nextPoint) or rawElement
     local targetMapID, tx, ty = GetTargetMap(element)
     if not targetMapID then HideMinimapRoute() return end
@@ -2691,7 +2706,7 @@ local function UpdateMinimapRoute()
     local vx = -math.sin(relativeBearing)
     local vy = math.cos(relativeBearing)
     if not twx then twx, twy, tcontinent = GetTargetWorld(element) end
-    if not pwx then pwx, pwy, pcontinent = GetPlayerWorld(playerMapID) end
+    if not pwx then pwx, pwy, pcontinent = GetPlayerWorld(playerMapID, px, py) end
     local distance
     if twx and twy and pwx and pwy and (not tcontinent or not pcontinent or pcontinent == tcontinent) then
         distance = WorldDistance(pwx, pwy, twx, twy)
@@ -2741,9 +2756,16 @@ local function UpdateMinimapRoute()
             overlay.rxpNormalRouteIcons = true
         end
     end
-    DrawMinimapLine(minimapRouteOutlineTexture, endX, endY, outlineThickness)
-    DrawMinimapLine(minimapRouteTexture, endX, endY, mainThickness)
-    if db.animation then
+    local hideBridgeLine = not corpseMode and Navigator.API:IsSPFBridgeActive()
+        and Navigator.SPFBridge:GetOption("hideActiveMinimap") ~= false
+    if hideBridgeLine then
+        minimapRouteOutlineTexture:Hide()
+        minimapRouteTexture:Hide()
+    else
+        DrawMinimapLine(minimapRouteOutlineTexture, endX, endY, outlineThickness)
+        DrawMinimapLine(minimapRouteTexture, endX, endY, mainThickness)
+    end
+    if Navigator.API:ShouldAnimateRoutes() and not hideBridgeLine then
         UpdateArrowSet(minimapArrows, overlay, 0, 0, endX, endY, GetTime and GetTime() or 0, 28, corpseMode, db.minimapAnimationSpeed)
         if corpseMode then ApplyCorpseProximityToIcons(minimapArrows, distance) end
     else
@@ -2781,6 +2803,7 @@ local function UpdateMinimapRoute()
         end
     end
 
+    if minimapProfilePhase then MarkMinimapPhase("Minimap overlay phase") end
     if Navigator.MinimapOverlays and Navigator.MinimapOverlays.Update then
         Navigator.MinimapOverlays:Update({
             overlay = overlay,
@@ -2792,26 +2815,7 @@ local function UpdateMinimapRoute()
             viewRadius = viewRadius,
             markerSize = minimapBaseSize,
             rotating = IsMinimapRotating(),
-            futureGoals = db.futureGoals or 0,
-            corpseMode = corpseMode,
-        })
-    end
-
-    if Navigator.MinimapFuture and Navigator.MinimapFuture.Update then
-        Navigator.MinimapFuture:Update({
-            overlay = overlay,
-            playerMapID = playerMapID,
-            playerX = px,
-            playerY = py,
-            halfW = halfW,
-            halfH = halfH,
-            viewRadius = viewRadius,
-            markerSize = minimapBaseSize,
-            currentX = endX,
-            currentY = endY,
-            rotating = IsMinimapRotating(),
-            futureGoals = db.futureGoals or 0,
-            enabled = db.showMinimapFutureGoals ~= false,
+            futureGoals = 0,
             corpseMode = corpseMode,
         })
     end
@@ -3027,7 +3031,8 @@ local function UpdateWorldMapRoute()
     -- segments. This avoids flooding the map with arrows just because the
     -- visual line contains additional smoothing samples.
     local sourceSegmentCount = math.max(0, #sourcePoints - 1)
-    if db.animation and sourceSegmentCount > 0 then
+    local animate = Navigator.API:ShouldAnimateRoutes()
+    if animate and sourceSegmentCount > 0 then
         local arrowSize = math.min(16, 11.0 + (boost - 1) * 1.8)
         for i = 1, sourceSegmentCount do
             local arrows = (i == 1) and worldArrowTextures or GetWorldFutureArrowSet(i - 1)
@@ -3048,7 +3053,7 @@ local function UpdateWorldMapRoute()
         worldRouteLines[i]:Hide()
         if worldRouteShadows[i] then worldRouteShadows[i]:Hide() end
     end
-    if db.animation then HideWorldFutureArrowSets(math.max(1, sourceSegmentCount)) end
+    if animate then HideWorldFutureArrowSets(math.max(1, sourceSegmentCount)) end
     for _, label in ipairs(worldRouteDistanceLabels) do label:Hide() end
 
     if Navigator.MapOverlays and Navigator.MapOverlays.Render then
@@ -3215,6 +3220,7 @@ local function ApplyHUDStyle(mode)
     local texture = GetHUDArrowTexturePath()
     if hudArrowTexture then
         hudArrowTexture:SetTexture(texture)
+        hudArrowTexture.rxpLastRotation = nil
         hudArrowTexture:SetDesaturated(true)
         hudArrowTexture:SetSize(64 * arrowScale, 36 * arrowScale)
         if corpseMode then
@@ -3236,6 +3242,7 @@ local function ApplyHUDStyle(mode)
     end
     if hudArrowShadow then
         hudArrowShadow:SetTexture(texture)
+        hudArrowShadow.rxpLastRotation = nil
         hudArrowShadow:SetSize(64 * arrowScale, 36 * arrowScale)
     end
 
@@ -3465,10 +3472,10 @@ local function HideHUDArrow()
     if hudArrowFrame then hudArrowFrame:Hide() end
 end
 
-local function GetHUDNavigationMetrics(elementOverride)
+local function GetHUDNavigationMetrics(elementOverride, currentElement)
     local element = elementOverride
     if not element then
-        local routePlan = Navigator.RouteResolver and Navigator.RouteResolver:GetCurrentPlan()
+        local routePlan = Navigator.RouteResolver and Navigator.RouteResolver:GetCurrentPlan(currentElement)
         element = routePlan and routePlan.nextPoint or GetCurrentNavigationElement()
     end
     if not element then return nil end
@@ -3483,7 +3490,7 @@ local function GetHUDNavigationMetrics(elementOverride)
     if localTX and localTY then dx, dy = localTX - px, localTY - py end
 
     local twx, twy, tcontinent = GetTargetWorld(element)
-    local pwx, pwy, pcontinent = GetPlayerWorld(playerMapID)
+    local pwx, pwy, pcontinent = GetPlayerWorld(playerMapID, px, py)
     if not dx and twx and twy then dx, dy = GetWorldVectorInPlayerMap(playerMapID, px, py, twx, twy) end
     if not dx or not dy then return nil end
 
@@ -3499,10 +3506,47 @@ local function GetHUDNavigationMetrics(elementOverride)
     -- HUD arrow textures point to the right at rotation 0. Convert the same
     -- relative bearing used by the minimap into screen-space rotation.
     local rotation = NormalizeAngle((math.pi / 2) + relative)
-    return rotation, distance, relative
+    return rotation, distance, relative, playerMapID
 end
 
-local function UpdateHUDArrow(dt)
+local hudContextCache = {}
+local function GetHUDContext(element, playerMapID)
+    local revision = Navigator.RXPData.revision
+    local questRevision = Navigator.Performance and Navigator.Performance.questRevision
+    local now = GetTime()
+    local targetMap = element and GetTargetMap(element)
+    local cache = hudContextCache
+    if cache.element == element and cache.playerMap == playerMapID and cache.targetMap == targetMap
+        and cache.revision == revision and cache.questRevision == questRevision
+        and cache.zone == db.showZoneHints and cache.transport == db.showTransportHints
+        and cache.time and now >= cache.time and now - cache.time < .25 then return cache.text end
+    local hints = {}
+    if db.showZoneHints then
+        local zoneName = GetZoneTransitionHint(element, playerMapID)
+        if zoneName then hints[#hints+1] = L("nextZone") .. ": " .. zoneName end
+    end
+    if db.showTransportHints then
+        local travel = DetectTransportHint(element)
+        if travel then hints[#hints+1] = L("travel") .. ": " .. travel end
+    end
+    cache.element, cache.playerMap, cache.targetMap = element, playerMapID, targetMap
+    cache.revision, cache.questRevision = revision, questRevision
+    cache.zone, cache.transport, cache.time = db.showZoneHints, db.showTransportHints, now
+    cache.text = table.concat(hints, "  •  ")
+    return cache.text
+end
+
+function Navigator:MarkHUDPhase(phase)
+    local now = debugprofilestop()
+    if self._hudPhase then self:RecordNavigationTiming(self._hudPhase, now - self._hudPhaseStarted) end
+    self._hudPhase, self._hudPhaseStarted = phase, now
+end
+
+function Navigator:SetHUDTextIfChanged(fontString, text)
+    if fontString:GetText() ~= text then fontString:SetText(text) end
+end
+
+function Navigator:UpdateHUDArrowRaw(dt)
     if Navigator.LayoutEditor and Navigator.LayoutEditor:IsEditing() then HideHUDArrow();return end
     if not db or not db.enabled or not db.showHUDArrow then HideHUDArrow() return end
     if not hudArrowFrame then BuildHUDArrow() end
@@ -3511,11 +3555,13 @@ local function UpdateHUDArrow(dt)
     arrowScale = math.max(0.55, math.min(2.0, arrowScale))
 
     local currentElement = GetCurrentNavigationElement()
+    if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel instruction") end
 
     -- Travel HUD announcements (e.g. Hearthstone) take precedence over
     -- directional navigation. A Travel action is an instruction, not a path.
     local travelAnnouncement = Navigator.TravelHUD and Navigator.TravelHUD:GetAnnouncement(currentElement)
     if travelAnnouncement then
+        if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD drawing") end
         local styleChanged = ApplyHUDStyle("announcement")
         HideGrindHUD()
         if hudCorpseSkull then hudCorpseSkull:Hide() end
@@ -3566,29 +3612,45 @@ local function UpdateHUDArrow(dt)
         hudArrowFrame.rxpTravelIcon:Hide()
     end
 
-    local travelInfo = Navigator.TravelMode and Navigator.TravelMode:GetInfo(currentElement)
+    if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel planning") end
+    local travelInfo
+    if Navigator.TravelPlanner and Navigator.TravelPlanner.GetHUDTravelInfo then
+        travelInfo = Navigator.TravelPlanner:GetHUDTravelInfo(currentElement)
+    else
+        travelInfo = Navigator.TravelMode and Navigator.TravelMode:GetInfo(currentElement)
+    end
     if travelInfo then
+        if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel route selection") end
         HideGrindHUD()
         -- Route selection is centralized in TravelPlanner. The proven
         -- TravelMode fallback remains authoritative when no smart plan exists.
-        local smartTravelPlan = Navigator.TravelPlanner and Navigator.TravelPlanner.GetPlan and Navigator.TravelPlanner:GetPlan(currentElement) or nil
-        local travelRoute = smartTravelPlan and smartTravelPlan.routeRaw or Navigator.TravelMode:GetBestRoute(currentElement, travelInfo)
+        local smartTravelPlan, travelRoute
+        if Navigator.TravelPlanner and Navigator.TravelPlanner.GetHUDTravelPlan then
+            smartTravelPlan, travelRoute = Navigator.TravelPlanner:GetHUDTravelPlan(currentElement, travelInfo)
+        else
+            smartTravelPlan = Navigator.TravelPlanner and Navigator.TravelPlanner.GetPlan and Navigator.TravelPlanner:GetPlan(currentElement, travelInfo) or nil
+            travelRoute = smartTravelPlan and smartTravelPlan.routeRaw or Navigator.TravelMode:GetBestRoute(currentElement, travelInfo)
+        end
         if hudCorpseSkull then hudCorpseSkull:Hide() end
 
+        if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel style") end
         local styleChanged = ApplyHUDStyle(travelRoute and "transport" or "travelFallback")
         if travelRoute then
             local planForDisplay = smartTravelPlan
             local departureElement = smartTravelPlan and smartTravelPlan.approachElement or { zone=travelRoute.fromMap, x=travelRoute.fromX, y=travelRoute.fromY, arrow=true, textOnly=true, travelPoint=true }
+            if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel direction and distance") end
             local rotation, distance = GetHUDNavigationMetrics(departureElement)
+            if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel drawing") end
             if rotation then
-                if hudArrowTexture then hudArrowTexture:Show(); hudArrowTexture:SetRotation(rotation) end
-                if hudArrowShadow then hudArrowShadow:Show(); hudArrowShadow:SetRotation(rotation) end
+                if hudArrowTexture then hudArrowTexture:Show(); if hudArrowTexture.rxpLastRotation ~= rotation then hudArrowTexture:SetRotation(rotation); hudArrowTexture.rxpLastRotation = rotation end end
+                if hudArrowShadow then hudArrowShadow:Show(); if hudArrowShadow.rxpLastRotation ~= rotation then hudArrowShadow:SetRotation(rotation); hudArrowShadow.rxpLastRotation = rotation end end
             else
                 if hudArrowTexture then hudArrowTexture:Hide() end
                 if hudArrowShadow then hudArrowShadow:Hide() end
             end
 
             if hudDistanceText then
+                if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel title") end
                 local routeKind = planForDisplay and planForDisplay.route and planForDisplay.route.kind or nil
                 local iconTexture = Navigator.Presentation and Navigator.Presentation:GetTransportIcon(routeKind) or "Interface\\MINIMAP\\TRACKING\\FlightMaster"
                 local icon = "|T" .. iconTexture .. ":20:20:0:0|t"
@@ -3607,9 +3669,10 @@ local function UpdateHUDArrow(dt)
                     hudDistanceText:SetShadowColor(0, 0, 0, 1)
                     hudDistanceText:SetShadowOffset(2, -2)
                 end
-                hudDistanceText:SetText(icon .. "  |cffffd24a" .. title .. "|r")
+                Navigator:SetHUDTextIfChanged(hudDistanceText, icon .. "  |cffffd24a" .. title .. "|r")
                 hudDistanceText:Show()
             end
+            if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel drawing") end
             if hudEtaText then
                 if styleChanged then
                     if GameFontNormalLarge and GameFontNormalLarge.GetFont then
@@ -3623,13 +3686,14 @@ local function UpdateHUDArrow(dt)
                     hudEtaText:SetShadowOffset(2, -2)
                 end
                 if distance then
-                    hudEtaText:SetText(FormatHUDDistance(distance))
+                    Navigator:SetHUDTextIfChanged(hudEtaText, FormatHUDDistance(distance))
                     hudEtaText:Show()
                 else
                     hudEtaText:Hide()
                 end
             end
             if hudContextText then
+                if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD travel context") end
                 local context = Navigator.Presentation and Navigator.Presentation:FormatTravelContext(planForDisplay) or nil
                 if styleChanged then
                     hudContextText:ClearAllPoints()
@@ -3647,10 +3711,10 @@ local function UpdateHUDArrow(dt)
                     hudContextText:SetShadowOffset(2, -2)
                 end
                 if context and context ~= "" then
-                    hudContextText:SetText(context)
+                    Navigator:SetHUDTextIfChanged(hudContextText, context)
                     hudContextText:Show()
                 else
-                    hudContextText:SetText("")
+                    Navigator:SetHUDTextIfChanged(hudContextText, "")
                     hudContextText:Hide()
                 end
             end
@@ -3661,14 +3725,14 @@ local function UpdateHUDArrow(dt)
             if hudArrowShadow then hudArrowShadow:Hide() end
             if hudDistanceText then
                 local icon = "|TInterface\\MINIMAP\\TRACKING\\FlightMaster:18:18:0:0|t"
-                hudDistanceText:SetText(icon .. "  |cffffd24a" .. (L("travel") or "Travel") .. "|r")
+                Navigator:SetHUDTextIfChanged(hudDistanceText, icon .. "  |cffffd24a" .. (L("travel") or "Travel") .. "|r")
                 hudDistanceText:Show()
             end
             if hudEtaText then hudEtaText:Hide() end
             if hudContextText then
                 local prefix = L("travelTo") or "Travel to"
                 local thenWord = L("travelThen") or "Then"
-                hudContextText:SetText("|cffffd24a" .. prefix .. " " .. travelInfo.targetContinentName .. "|r\n|cffb8b8b8" .. thenWord .. ": " .. travelInfo.targetZone .. "|r")
+                Navigator:SetHUDTextIfChanged(hudContextText, "|cffffd24a" .. prefix .. " " .. travelInfo.targetContinentName .. "|r\n|cffb8b8b8" .. thenWord .. ": " .. travelInfo.targetZone .. "|r")
                 hudContextText:Show()
             end
         end
@@ -3676,20 +3740,29 @@ local function UpdateHUDArrow(dt)
         return
     end
 
+    if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD style") end
     ApplyHUDStyle("normal")
     if hudArrowTexture then hudArrowTexture:Show() end
     if hudArrowShadow then hudArrowShadow:Show() end
 
-    local rotation, distance, relativeBearing = GetHUDNavigationMetrics()
+    if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD direction and distance") end
+    local rotation, distance, relativeBearing, playerMapID = GetHUDNavigationMetrics(nil, currentElement)
     if not rotation or not distance then HideHUDArrow() return end
 
-    hudArrowTexture:SetRotation(rotation)
-    if hudArrowShadow then hudArrowShadow:SetRotation(rotation) end
+    if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD drawing") end
+    if hudArrowTexture.rxpLastRotation ~= rotation then
+        hudArrowTexture:SetRotation(rotation)
+        hudArrowTexture.rxpLastRotation = rotation
+    end
+    if hudArrowShadow and hudArrowShadow.rxpLastRotation ~= rotation then
+        hudArrowShadow:SetRotation(rotation)
+        hudArrowShadow.rxpLastRotation = rotation
+    end
 
     local corpseMode = IsCorpseRunMode()
     if db.hudShowDistance then
-        if corpseMode then hudDistanceText:SetText(L("corpse") .. ": " .. FormatHUDDistance(distance))
-        else hudDistanceText:SetText(FormatHUDDistance(distance)) end
+        local text = corpseMode and (L("corpse") .. ": " .. FormatHUDDistance(distance)) or FormatHUDDistance(distance)
+        if hudDistanceText:GetText() ~= text then hudDistanceText:SetText(text) end
         hudDistanceText:Show()
     else
         hudDistanceText:Hide()
@@ -3701,6 +3774,7 @@ local function UpdateHUDArrow(dt)
         hudCorpseSkull:SetSize(baseSize*(1+proximity*0.22), baseSize*(1+proximity*0.22))
         hudCorpseSkull:SetVertexColor(1,1,1,math.min(1,baseAlpha+proximity*0.50))
     end
+    if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD grind") end
     local grindState = (not corpseMode and Navigator.GrindHUD and Navigator.GrindHUD.GetState) and Navigator.GrindHUD:GetState() or nil
     if corpseMode and not grindState then
         hudEtaText:SetText(distance < 30 and L("corpseNearby") or L("corpseRun"))
@@ -3709,38 +3783,46 @@ local function UpdateHUDArrow(dt)
         hudEtaText:Hide()
     end
 
+    if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD context") end
     if hudContextText then
-        local hints = {}
-        local element = GetCurrentNavigationElement()
-        local playerMapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
-        if not corpseMode and db.showZoneHints then
-            local zoneName = GetZoneTransitionHint(element, playerMapID)
-            if zoneName then hints[#hints+1] = L("nextZone") .. ": " .. zoneName end
-        end
-        if not corpseMode and db.showTransportHints then
-            local travel = DetectTransportHint(element)
-            if travel then hints[#hints+1] = L("travel") .. ": " .. travel end
-        end
-        if corpseMode and db.showSpiritHealer then
-            local healer = GetNearestSpiritHealerElement()
+        local text
+        if corpseMode then
+            -- The graveyard distance remains live on every HUD tick.
+            local healer = db.showSpiritHealer and GetNearestSpiritHealerElement()
             local hm = healer and GetTargetMap(healer)
             if hm and playerMapID then
                 local htx, hty, hc = GetTargetWorld(healer)
                 local pwx, pwy, pc = GetPlayerWorld(playerMapID)
                 if htx and hty and pwx and pwy and (not hc or not pc or hc == pc) then
                     local hd = WorldDistance(pwx,pwy,htx,hty)
-                    if hd then hints[#hints+1] = L("spiritHealerLabel") .. ": " .. FormatHUDDistance(hd) end
+                    if hd then text = L("spiritHealerLabel") .. ": " .. FormatHUDDistance(hd) end
                 end
             end
+        else
+            text = GetHUDContext(currentElement, playerMapID)
         end
-        if #hints > 0 then hudContextText:SetText(table.concat(hints, "  •  ")); hudContextText:Show() else hudContextText:Hide() end
+        if text and text ~= "" then
+            if hudContextText:GetText() ~= text then hudContextText:SetText(text) end
+            hudContextText:Show()
+        else
+            hudContextText:Hide()
+        end
     end
+    if Navigator.navigationProfileActive then Navigator:MarkHUDPhase("HUD drawing") end
     UpdateGrindHUD(grindState)
     hudArrowFrame:Show()
 end
 
-local MINIMAP_PROFILE_PHASES = {"Minimap route", "Minimap projection", "Minimap drawing"}
+local function UpdateHUDArrow(dt)
+    if not Navigator.navigationProfileActive then return Navigator:UpdateHUDArrowRaw(dt) end
+    Navigator:MarkHUDPhase("HUD target")
+    Navigator:UpdateHUDArrowRaw(dt)
+    Navigator:MarkHUDPhase(nil)
+end
+
+local MINIMAP_PROFILE_PHASES = {"Minimap route", "Minimap projection", "Minimap drawing", "Minimap overlay phase", "Minimap future phase"}
 local PERFORMANCE_ROOTS = {"HUD", "World marker", "World marker tracking", "Minimap", "World map", "Full refresh", "SPF bridge", "Quest messages", "RXP maintenance", "Map tooltip", "Route tooltip"}
+local HUD_PROFILE_PHASES = {"HUD travel route selection", "HUD travel style", "HUD travel direction and distance", "HUD travel title", "HUD travel context", "HUD travel drawing", "HUD target", "HUD travel instruction", "HUD travel planning", "HUD style", "HUD direction and distance", "HUD grind", "HUD context", "HUD drawing"}
 local PERFORMANCE_DETAILS = {"Player map lookup", "Quest objectives", "Target resolution", "Current route plan", "Future route plans", "Grind state", "Minimap overlays", "Minimap future", "World overlays"}
 
 function Navigator:RecordNavigationTiming(label, milliseconds)
@@ -3767,6 +3849,8 @@ local function FinishNavigationProfile()
         tostring(db and db.showWorldMarkerHeader), tostring(db and db.showMinimap),
         tostring(db and db.showWorldMap), tostring(db and db.animation),
         tostring(RXPNavigatorSPFDB and RXPNavigatorSPFDB.enabled)))
+    Print(("Minimap policy | current step only | interval %.2f s | effective route animation=%s"):format(
+        Navigator.API:GetMinimapUpdateInterval(), tostring(Navigator.API:ShouldAnimateRoutes() == true)))
     Print(("Performance | %.1f s | %.1f FPS | %d frames"):format(
         sample.seconds, sample.frames / sample.seconds, sample.frames))
     local total = 0
@@ -3786,6 +3870,13 @@ local function FinishNavigationProfile()
         local bucket = sample[label]
         if bucket.calls > 0 then
             Print(("%s: %.3f ms/frame | %.3f ms/update avg | %.3f ms peak | %d calls"):format(
+                label, bucket.total / sample.frames, bucket.total / bucket.calls, bucket.peak, bucket.calls))
+        end
+    end
+    for _, label in ipairs(HUD_PROFILE_PHASES) do
+        local bucket = sample[label]
+        if bucket.calls > 0 then
+            Print(("%s: %.3f ms/frame | %.3f ms/block avg | %.3f ms peak | %d blocks"):format(
                 label, bucket.total / sample.frames, bucket.total / bucket.calls, bucket.peak, bucket.calls))
         end
     end
@@ -3813,6 +3904,9 @@ local function StartNavigationProfile()
         profileSample[label] = {total = 0, calls = 0, peak = 0}
     end
     for _, label in ipairs(PERFORMANCE_DETAILS) do
+        profileSample[label] = {total = 0, calls = 0, peak = 0}
+    end
+    for _, label in ipairs(HUD_PROFILE_PHASES) do
         profileSample[label] = {total = 0, calls = 0, peak = 0}
     end
     Navigator.navigationProfileActive = true
@@ -3872,6 +3966,19 @@ Navigator.rxpEventBridgeReady = false
 -- reaching into core lexical locals. This keeps modules independent and
 -- prevents the main Lua chunk from growing back toward WoW's 200-local limit.
 Navigator.API = Navigator.API or {}
+function Navigator.API:IsSPFBridgeActive()
+    local bridge = Navigator.SPFBridge
+    return db and db.enabled and bridge and bridge:IsAvailable() and bridge:GetOption("enabled") == true
+end
+
+function Navigator.API:ShouldAnimateRoutes()
+    return db and db.animation and not self:IsSPFBridgeActive()
+end
+
+function Navigator.API:GetMinimapUpdateInterval()
+    return self:ShouldAnimateRoutes() and UPDATE_INTERVAL or 0.10
+end
+
 function Navigator.API:GetDB() return db end
 
 local function RXPNavigatorCharacterKey()
@@ -4242,10 +4349,10 @@ function Navigator.API:GetMinimapFuturePoint(element, playerMapID, px, py, halfW
     -- Never reject a nearby future target merely because Forever exposes a
     -- different world-space id for a neighbouring zone/submap. The Blizzard
     -- UI-map hierarchy is authoritative for continent membership.
-    local playerContinentMapID = ResolveContinentMapID(playerMapID)
-    local targetContinentMapID = ResolveContinentMapID(targetMapID)
-    if playerContinentMapID and targetContinentMapID and playerContinentMapID ~= targetContinentMapID then
-        return nil
+    if playerMapID ~= targetMapID then
+        local playerContinentMapID = ResolveContinentMapID(playerMapID)
+        local targetContinentMapID = ResolveContinentMapID(targetMapID)
+        if playerContinentMapID and targetContinentMapID and playerContinentMapID ~= targetContinentMapID then return nil end
     end
 
     local bearing = math.atan2(-dx, -dy)
@@ -4260,7 +4367,7 @@ function Navigator.API:GetMinimapFuturePoint(element, playerMapID, px, py, halfW
     -- Prefer real world distance when both points share a world space. If they
     -- do not, derive an approximate local-map distance from Blizzard's map basis.
     if not twx then twx, twy, tcontinent = GetTargetWorld(element) end
-    if not pwx then pwx, pwy, pcontinent = GetPlayerWorld(playerMapID) end
+    if not pwx then pwx, pwy, pcontinent = GetPlayerWorld(playerMapID, px, py) end
     local distance
     if twx and twy and pwx and pwy and (not tcontinent or not pcontinent or tcontinent == pcontinent) then
         distance = WorldDistance(pwx, pwy, twx, twy)
@@ -4433,10 +4540,10 @@ Navigator:SetScript("OnUpdate", function(self, dt)
         if profileSample then profileSample.rxpMessages = profileSample.rxpMessages + (self._rxpPerfMessages or 0) end
         self._rxpPerfMessages = nil
         Navigator.RXPData:Invalidate()
-        elapsed, mapElapsed, hudElapsed = UPDATE_INTERVAL, MAP_UPDATE_INTERVAL, 0.05
+        elapsed, mapElapsed, hudElapsed = 0.10, MAP_UPDATE_INTERVAL, 0.05
     end
     elapsed = elapsed + dt
-    if elapsed >= UPDATE_INTERVAL then elapsed = 0; RunNavigationUpdate("Minimap", UpdateMinimapRoute) end
+    if elapsed >= Navigator.API:GetMinimapUpdateInterval() then elapsed = 0; RunNavigationUpdate("Minimap", UpdateMinimapRoute) end
     mapElapsed = mapElapsed + dt
     if mapElapsed >= MAP_UPDATE_INTERVAL then mapElapsed = 0; RunNavigationUpdate("World map", UpdateWorldMapRoute) end
     hudElapsed = hudElapsed + dt

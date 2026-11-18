@@ -86,7 +86,7 @@ local function ExtractDestination(element, model)
     return nil
 end
 
-function Resolver:Resolve(element)
+function Resolver:Resolve(element, crossOverride)
     if type(element) ~= "table" then return nil end
     local model = API:GetNormalizedRXPData(element) or {}
     local kind, hint = DetectKind(element, model)
@@ -95,7 +95,7 @@ function Resolver:Resolve(element)
     local mapID, x, y = model.mapID, model.x, model.y
     if not mapID then mapID, x, y = API:GetTargetMap(element) end
 
-    local cross = Navigator.TravelMode and Navigator.TravelMode.GetInfo and Navigator.TravelMode:GetInfo(element) or nil
+    local cross = crossOverride or Navigator.TravelMode and Navigator.TravelMode.GetInfo and Navigator.TravelMode:GetInfo(element) or nil
     local destination = ExtractDestination(element, model)
     if not destination and cross then destination = cross.targetZone end
 

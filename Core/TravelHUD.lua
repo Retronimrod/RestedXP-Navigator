@@ -237,7 +237,7 @@ local function ResolveDestination(hearth)
     return nil, candidates[1]
 end
 
-function Navigator.TravelHUD:GetAnnouncement(element)
+function Navigator.TravelHUD:BuildAnnouncement(element)
     local hearth = FindHearthElement(element)
     if not hearth then return nil end
 
@@ -251,5 +251,25 @@ function Navigator.TravelHUD:GetAnnouncement(element)
         destination = destination,
         instruction = instruction,
         icon = HEARTH_ICON,
-    }
+    }, hearth
+end
+
+
+local announcementCache = {}
+function Navigator.TravelHUD:GetAnnouncement(element)
+    local cache = announcementCache
+    local now = GetTime()
+    local revision = Navigator.RXPData and Navigator.RXPData.revision
+    local questRevision = Navigator.Performance and Navigator.Performance.questRevision
+    local step = element and element.step
+    if cache.valid and cache.element == element and cache.step == step and cache.revision == revision
+        and cache.questRevision == questRevision and now >= cache.time and now - cache.time < .1
+        and (not cache.hearth or (not cache.hearth.skip and not cache.hearth.completed)) then
+        return cache.value
+    end
+    local value, hearth = self:BuildAnnouncement(element)
+    cache.valid, cache.element, cache.step = true, element, step
+    cache.revision, cache.questRevision, cache.time = revision, questRevision, now
+    cache.value, cache.hearth = value, hearth
+    return value
 end
