@@ -5,7 +5,7 @@ _G.RXPNavigator = Navigator
 local PI2 = math.pi * 2
 local UPDATE_INTERVAL = 0.05
 local MAP_UPDATE_INTERVAL = 0.10
-local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.26"
+local ADDON_VERSION = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")) or "1.7.27"
 
 local THEMES = {
     navigator = { name = "Navigator Grün", line = {0.18, 0.96, 0.36}, arrow = {0.30, 1.00, 0.46}, center = {0.15, 0.96, 0.36}, accent = {0.93, 0.72, 0.16} },
@@ -1077,19 +1077,38 @@ end
 -- Travel Mode itself still depends exclusively on GetInfo(), so failure to resolve a
 -- transport point can never suppress the existing cross-continent warning.
 Navigator.TravelMode.routes = {
-    { kind="Zeppelin", fromName="Undercity", fromDetail="Tirisfal Glades 61.0, 59.0 - west platform", toName="Orgrimmar", fromMap=1420, fromX=0.610, fromY=0.590, toMap=1411, toX=0.508, toY=0.136 },
-    { kind="Zeppelin", fromName="Orgrimmar", fromDetail="Durotar 50.8, 13.6 - south platform", toName="Undercity", fromMap=1411, fromX=0.508, fromY=0.136, toMap=1420, toX=0.610, toY=0.590 },
-    { kind="Zeppelin", fromName="Grom'gol", fromDetail="Stranglethorn Vale 31.5, 29.6 - south platform", toName="Orgrimmar", fromMap=1434, fromX=0.315, fromY=0.296, toMap=1411, toX=0.508, toY=0.136 },
-    { kind="Zeppelin", fromName="Orgrimmar", fromDetail="Durotar 50.8, 13.6 - north platform", toName="Grom'gol", fromMap=1411, fromX=0.508, fromY=0.136, toMap=1434, toX=0.315, toY=0.296 },
-    { kind="Ship", fromName="Booty Bay", fromDetail="Stranglethorn Vale 26.0, 73.2 - dock", toName="Ratchet", fromMap=1434, fromX=0.260, fromY=0.732, toMap=1413, toX=0.636, toY=0.387 },
-    { kind="Ship", fromName="Ratchet", fromDetail="The Barrens 63.6, 38.7 - dock", toName="Booty Bay", fromMap=1413, fromX=0.636, fromY=0.387, toMap=1434, toX=0.260, toY=0.732 },
+    { kind="Zeppelin", faction="Horde", fromName="Undercity", fromDetail="Tirisfal Glades 61.0, 59.0 - west platform", toName="Orgrimmar", fromMap=1420, fromX=0.610, fromY=0.590, toMap=1411, toX=0.508, toY=0.136 },
+    { kind="Zeppelin", faction="Horde", fromName="Orgrimmar", fromDetail="Durotar 50.8, 13.6 - south platform", toName="Undercity", fromMap=1411, fromX=0.508, fromY=0.136, toMap=1420, toX=0.610, toY=0.590 },
+    { kind="Zeppelin", faction="Horde", fromName="Grom'gol", fromDetail="Stranglethorn Vale 31.5, 29.6 - south platform", toName="Orgrimmar", fromMap=1434, fromX=0.315, fromY=0.296, toMap=1411, toX=0.508, toY=0.136 },
+    { kind="Zeppelin", faction="Horde", fromName="Orgrimmar", fromDetail="Durotar 50.8, 13.6 - north platform", toName="Grom'gol", fromMap=1411, fromX=0.508, fromY=0.136, toMap=1434, toX=0.315, toY=0.296 },
+    { kind="Ship", faction="Neutral", fromName="Booty Bay", fromDetail="Stranglethorn Vale 26.0, 73.2 - dock", toName="Ratchet", fromMap=1434, fromX=0.260, fromY=0.732, toMap=1413, toX=0.636, toY=0.387 },
+    { kind="Ship", faction="Neutral", fromName="Ratchet", fromDetail="The Barrens 63.6, 38.7 - dock", toName="Booty Bay", fromMap=1413, fromX=0.636, fromY=0.387, toMap=1434, toX=0.260, toY=0.732 },
+
+    -- Alliance boarding surfaces: see Docs/RELEASE-v1.7.27.md for data sources.
+    { kind="Ship", faction="Alliance", fromName="Menethil Harbor", toName="Theramore", fromMap=1437, fromX=0.05102781, fromY=0.63733672, toMap=1445, toX=0.71567619, toY=0.56428571 },
+    { kind="Ship", faction="Alliance", fromName="Theramore", toName="Menethil Harbor", fromMap=1445, fromX=0.71567619, fromY=0.56428571, toMap=1437, toX=0.05102781, toY=0.63733672 },
+    { kind="Ship", faction="Alliance", fromName="Menethil Harbor", toName="Auberdine", fromMap=1437, fromX=0.04718259, fromY=0.57089985, toMap=1439, toX=0.32459542, toY=0.43818140 },
+    { kind="Ship", faction="Alliance", fromName="Auberdine", toName="Menethil Harbor", fromMap=1439, fromX=0.32459542, fromY=0.43818140, toMap=1437, toX=0.04718259, toY=0.57089985 },
+    { kind="Ship", faction="Alliance", fromName="Auberdine", toName="Rut'theran Village", fromMap=1439, fromX=0.33309924, fromY=0.40171782, toMap=1438, toX=0.54833071, toY=0.96604775 },
+    { kind="Ship", faction="Alliance", fromName="Rut'theran Village", toName="Auberdine", fromMap=1438, fromX=0.54833071, fromY=0.96604775, toMap=1439, toX=0.33309924, toY=0.40171782 },
+    { kind="Ship", faction="Alliance", fromName="Feathermoon Stronghold", toName="Feralas", fromMap=1444, fromX=0.31056115, fromY=0.39885603, toMap=1444, toX=0.43425899, toY=0.42805957 },
+    { kind="Ship", faction="Alliance", fromName="Feralas", toName="Feathermoon Stronghold", fromMap=1444, fromX=0.43425899, fromY=0.42805957, toMap=1444, toX=0.31056115, toY=0.39885603 },
 }
+
+-- UnitFactionGroup's first result is a locale-independent token.
+function Navigator.TravelMode:IsRouteAllowed(route)
+    if type(route) ~= "table" then return false end
+    if route.faction == "Neutral" then return true end
+    local faction = UnitFactionGroup and UnitFactionGroup("player")
+    return (faction == "Alliance" or faction == "Horde") and route.faction == faction
+end
 
 function Navigator.TravelMode:GetBestRoute(element, info)
     info = info or self:GetInfo(element)
     if not info then return nil end
     local best, bestScore
     for _, route in ipairs(self.routes or {}) do
+        if self:IsRouteAllowed(route) then
         local dwx, dwy, dc = GetWorldPosForMap(route.fromMap, route.fromX, route.fromY)
         local awx, awy, ac = GetWorldPosForMap(route.toMap, route.toX, route.toY)
         if dwx and dwy and awx and awy and dc == info.playerContinent and ac == info.targetContinent then
@@ -1102,6 +1121,7 @@ function Navigator.TravelMode:GetBestRoute(element, info)
                     best = route
                 end
             end
+        end
         end
     end
     return best

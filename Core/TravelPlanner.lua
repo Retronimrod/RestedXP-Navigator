@@ -91,8 +91,9 @@ function Planner:GetHUDTravelInfo(element)
     local playerMap = API:ResolvePlayerMapAndPosition(map)
     local revision = Navigator.RXPData and Navigator.RXPData.revision
     local questRevision = Navigator.Performance and Navigator.Performance.questRevision
+    local faction = UnitFactionGroup and UnitFactionGroup("player")
     local cache = hudTravel
-    if cache.valid and playerMap and cache.playerMap == playerMap
+    if cache.valid and cache.faction == faction and playerMap and cache.playerMap == playerMap
         and cache.element == element and cache.step == element.step
         and cache.map == map and cache.x == x and cache.y == y
         and cache.corpse == element.corpseNav and cache.skip == element.skip
@@ -102,6 +103,7 @@ function Planner:GetHUDTravelInfo(element)
         and now >= cache.time and now - cache.time < .25 then
         return cache.info
     end
+    cache.faction = faction
     cache.valid, cache.time = playerMap ~= nil, now
     cache.playerMap, cache.element, cache.step = playerMap, element, element.step
     cache.map, cache.x, cache.y = map, x, y

@@ -32,11 +32,12 @@ function Network:GetStaticRoutes()
     local routes = Navigator.TravelMode and Navigator.TravelMode.routes or nil
     if type(routes) ~= "table" then return out end
     for _, route in ipairs(routes) do
-        if type(route) == "table" and route.fromMap and route.fromX and route.fromY and route.toMap and route.toX and route.toY then
+        if Navigator.TravelMode:IsRouteAllowed(route) and route.fromMap and route.fromX and route.fromY and route.toMap and route.toX and route.toY then
             out[#out + 1] = {
                 source = "curated",
                 kind = NormalizeKind(route.kind),
                 label = route.kind,
+                faction = route.faction,
                 fromName = route.fromName,
                 fromDetail = route.fromDetail,
                 fromMap = route.fromMap, fromX = route.fromX, fromY = route.fromY,

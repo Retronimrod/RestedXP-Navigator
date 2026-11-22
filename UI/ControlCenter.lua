@@ -229,7 +229,7 @@ end
 local newsWindow
 local restoreSettingsAfterNews
 local releases = {
-    {"1.7.26", "Performance", "The minimap shares cached travel planning with the HUD. Position, zoom and direction remain live."},
+    {"1.7.27", "Performance", "Transport routes now follow your character faction automatically. Alliance ships and neutral routes are supported."},
     {"1.7.19", "Performance", "Minimap and HUD share position data within each frame. Upcoming markers update their styling only when it changes."},
     {"1.7.18", "Performance", "Faster map lookup and cached quest data. Record a 30-second performance report under Advanced."},
     {"1.7.17", "Target box", "The target box can be enabled or disabled under Navigation."},
